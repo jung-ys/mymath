@@ -96,10 +96,18 @@ export const READINESS_CONFIG = {
   minAvgAccuracy: 0.9, // 90%
 };
 
-export const DAILY_TEST_CONFIG = {
-  questionCount: 10,
-  timeLimitSec: 3 * 60, // 3분
-};
+// 오늘의 테스트 문항 수는 지금까지 배운 단 수에 비례해서 늘어난다
+// (단마다 3문제, 최소 15문제 ~ 최대 30문제로 제한해 너무 길어지지 않게 한다).
+const DAILY_QUESTIONS_PER_TABLE = 3;
+const DAILY_QUESTIONS_MIN = 15;
+const DAILY_QUESTIONS_MAX = 30;
+const DAILY_SEC_PER_QUESTION = 12;
+
+export function dailyTestConfigFor(tables: number[]) {
+  const questionCount = Math.min(DAILY_QUESTIONS_MAX, Math.max(DAILY_QUESTIONS_MIN, tables.length * DAILY_QUESTIONS_PER_TABLE));
+  const timeLimitSec = Math.round(questionCount * DAILY_SEC_PER_QUESTION);
+  return { questionCount, timeLimitSec };
+}
 
 export function getLevelDef(level: number): LevelDef | null {
   return LEVELS.find((l) => l.level === level) || null;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthedStudent } from "@/lib/apiAuth";
 import { todayStats } from "@/lib/studentView";
-import { tablesForStudent, generateProblems, DAILY_TEST_CONFIG } from "@/lib/levels";
+import { tablesForStudent, generateProblems, dailyTestConfigFor } from "@/lib/levels";
 import { encryptExamToken } from "@/lib/examToken";
 
 export async function POST(req: NextRequest) {
@@ -14,19 +14,20 @@ export async function POST(req: NextRequest) {
   }
 
   const tables = tablesForStudent(student.level);
-  const problems = generateProblems(tables, DAILY_TEST_CONFIG.questionCount);
+  const config = dailyTestConfigFor(tables);
+  const problems = generateProblems(tables, config.questionCount);
   const examToken = encryptExamToken({
     studentId: student.id,
     kind: "daily",
     level: student.level,
     problems,
-    config: DAILY_TEST_CONFIG,
+    config,
     createdAt: Date.now(),
   });
 
   return NextResponse.json({
     examToken,
     problems: problems.map(({ a, b }) => ({ a, b })),
-    config: DAILY_TEST_CONFIG,
+    config,
   });
 }

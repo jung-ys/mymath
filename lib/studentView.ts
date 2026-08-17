@@ -1,6 +1,6 @@
 import type { Student } from "@prisma/client";
 import { prisma } from "./prisma";
-import { getLevelDef, MASTER_LEVEL, DAILY_TEST_CONFIG, READINESS_CONFIG, todayKST } from "./levels";
+import { getLevelDef, MASTER_LEVEL, dailyTestConfigFor, tablesForStudent, READINESS_CONFIG, todayKST } from "./levels";
 
 export function publicStudent(s: Student) {
   const levelDef = getLevelDef(s.level);
@@ -83,7 +83,7 @@ export async function studentSummary(s: Student) {
     dailyTest: {
       taken: !!dailyDone,
       result: dailyDone,
-      config: DAILY_TEST_CONFIG,
+      config: dailyTestConfigFor(tablesForStudent(s.level)),
     },
     levelExam: isMaster
       ? { available: false, reason: "모든 단계를 마스터했습니다!" }

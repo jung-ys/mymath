@@ -1,0 +1,13 @@
+{
+  "name": "mymath",
+  "version": "1.0.0",
+  "private": true,
+  "description": "구구단(2단~19단) 4단계 레벨업 승급 시험 웹 시스템",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

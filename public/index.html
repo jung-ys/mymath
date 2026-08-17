@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>구구단 레벨업 - 학생 로그인</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="dot">✕</span> 구구단 레벨업</div>
+  <nav>
+    <a href="/board.html">레벨업 게시판</a>
+    <a href="/admin.html">선생님 로그인</a>
+  </nav>
+</header>
+
+<div class="wrap narrow">
+  <div class="hero">
+    <h1>구구단 레벨업 시험</h1>
+    <p>2단부터 19단까지, 4단계로 나누어 승급 시험을 봐요.<br/>이름과 비밀번호로 로그인하고 오늘의 테스트를 시작하세요!</p>
+  </div>
+
+  <div class="card">
+    <h2 class="mt0">학생 로그인</h2>
+    <form id="login-form">
+      <label for="name">이름</label>
+      <input type="text" id="name" placeholder="예: 홍길동" autocomplete="username" required />
+      <label for="pin">비밀번호 (숫자 4~6자리)</label>
+      <input type="password" id="pin" inputmode="numeric" placeholder="선생님이 알려준 번호" autocomplete="current-password" required />
+      <button type="submit" class="btn" style="width:100%">로그인</button>
+      <div class="error-box" id="err"></div>
+    </form>
+  </div>
+
+  <div class="card center muted" style="font-size:0.85rem">
+    계정이 없나요? 선생님께 등록을 요청하세요.
+  </div>
+</div>
+
+<footer class="foot">구구단 레벨업 &middot; 매일 조금씩, 꾸준히!</footer>
+
+<script src="/js/common.js"></script>
+<script>
+(async function init() {
+  try {
+    const me = await api('/api/me');
+    if (me.authed && me.type === 'student') {
+      location.href = '/student.html';
+    }
+  } catch {}
+})();
+
+const form = qs('#login-form');
+const err = qs('#err');
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hideError(err);
+  const name = qs('#name').value.trim();
+  const pin = qs('#pin').value.trim();
+  try {
+    await api('/api/login', { method: 'POST', body: { name, pin } });
+    location.href = '/student.html';
+  } catch (ex) {
+    showError(err, ex.message);
+  }
+});
+</script>
+</body>
+</html>

@@ -1,6 +1,15 @@
 import type { Student } from "@prisma/client";
 import { prisma } from "./prisma";
-import { getLevelDef, MASTER_LEVEL, dailyTestConfigFor, tablesForStudent, READINESS_CONFIG, todayKST } from "./levels";
+import {
+  getLevelDef,
+  MASTER_LEVEL,
+  dailyTestConfigFor,
+  dailyTestConfigForCustom,
+  tablesForStudent,
+  READINESS_CONFIG,
+  todayKST,
+} from "./levels";
+import { computeCurrentWrongPairs } from "./retest";
 
 export function publicStudent(s: Student) {
   const levelDef = getLevelDef(s.level);
@@ -75,6 +84,11 @@ export async function studentSummary(s: Student) {
   const attemptToday = isMaster ? null : await levelExamAttemptToday(s.id, s.level);
   const readiness = isMaster ? null : await computeReadiness(s.id, s.streak);
   const history = await studentHistory(s.id, 10);
+  const wrongPairs = await computeCurrentWrongPairs(s.id);
+
+  const hasCustom = s.customTables.length > 0;
+  const dailyTables = hasCustom ? s.customTables : tablesForStudent(s.level);
+  const dailyConfig = hasCustom ? dailyTestConfigForCustom(dailyTables, s.customCount) : dailyTestConfigFor(dailyTables);
 
   return {
     student: publicStudent(s),
@@ -83,8 +97,14 @@ export async function studentSummary(s: Student) {
     dailyTest: {
       taken: !!dailyDone,
       result: dailyDone,
-      config: dailyTestConfigFor(tablesForStudent(s.level)),
+      config: dailyConfig,
     },
+    customConfig: {
+      tables: s.customTables,
+      questionCount: s.customCount,
+      allowDuplicates: s.allowDuplicates,
+    },
+    wrongCount: wrongPairs.length,
     levelExam: isMaster
       ? { available: false, reason: "모든 단계를 마스터했습니다!" }
       : {

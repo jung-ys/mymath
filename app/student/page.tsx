@@ -37,6 +37,7 @@ interface Summary {
     streak: number;
   };
   masterLevel: number;
+  wrongCount: number;
   dailyTest: {
     taken: boolean;
     result: { score: number; total: number } | null;
@@ -64,7 +65,7 @@ interface Problem {
 }
 
 interface ExamState {
-  kind: "daily" | "level";
+  kind: "daily" | "level" | "retest";
   examToken: string;
   problems: Problem[];
   config: ExamConfig;
@@ -100,7 +101,12 @@ interface LevelSubmitResponse {
   newLevel: number;
   newLevelDef: LevelDef | null;
 }
-type SubmitResponse = DailySubmitResponse | LevelSubmitResponse;
+interface RetestSubmitResponse {
+  result: DailyResultRecord;
+  stillWrong: number;
+  allCleared: boolean;
+}
+type SubmitResponse = DailySubmitResponse | LevelSubmitResponse | RetestSubmitResponse;
 
 function ReadinessBars({ r }: { r: Readiness }) {
   const streakPct = Math.min(100, Math.round((r.streak / r.minStreakDays) * 100));
@@ -174,12 +180,13 @@ export default function StudentPage() {
     router.push("/");
   }
 
-  async function startExam(kind: "daily" | "level") {
+  async function startExam(kind: "daily" | "level" | "retest") {
+    const startEndpoint =
+      kind === "daily" ? "/api/daily-test/start" : kind === "level" ? "/api/level-exam/start" : "/api/wrong-retest/start";
     try {
-      const data = await api<{ examToken: string; problems: Problem[]; config: ExamConfig; levelDef?: LevelDef }>(
-        kind === "daily" ? "/api/daily-test/start" : "/api/level-exam/start",
-        { method: "POST" }
-      );
+      const data = await api<{ examToken: string; problems: Problem[]; config: ExamConfig; levelDef?: LevelDef }>(startEndpoint, {
+        method: "POST",
+      });
       submittedRef.current = false;
       setTimedOutFlag(false);
       setExamState({
@@ -210,7 +217,12 @@ export default function StudentPage() {
       const parsedAnswers = answers.map((v) => (v.trim() === "" ? null : Number(v)));
 
       try {
-        const endpoint = examState.kind === "daily" ? "/api/daily-test/submit" : "/api/level-exam/submit";
+        const endpoint =
+          examState.kind === "daily"
+            ? "/api/daily-test/submit"
+            : examState.kind === "level"
+              ? "/api/level-exam/submit"
+              : "/api/wrong-retest/submit";
         const data = await api<SubmitResponse>(endpoint, {
           method: "POST",
           body: { examToken: examState.examToken, answers: parsedAnswers, elapsedSec },
@@ -260,13 +272,22 @@ export default function StudentPage() {
 
       <div className="wrap">
         {view === "dashboard" && summary && (
-          <Dashboard summary={summary} onStartDaily={() => startExam("daily")} onStartLevel={() => startExam("level")} />
+          <Dashboard
+            summary={summary}
+            onStartDaily={() => startExam("daily")}
+            onStartLevel={() => startExam("level")}
+            onStartRetest={() => startExam("retest")}
+          />
         )}
 
         {view === "exam" && examState && (
           <div className="card exam-box">
             <h2 className="mt0">
-              {examState.kind === "daily" ? "📅 오늘의 테스트" : `🏆 ${examState.levelDef?.title ?? ""} 승급 시험`}
+              {examState.kind === "daily"
+                ? "📅 오늘의 테스트"
+                : examState.kind === "retest"
+                  ? "🔁 오답 다시 풀기"
+                  : `🏆 ${examState.levelDef?.title ?? ""} 승급 시험`}
             </h2>
             <div className="timer" style={{ color: remaining <= 30 ? "var(--bad)" : undefined }}>
               {String(Math.floor(remaining / 60)).padStart(2, "0")}:{String(remaining % 60).padStart(2, "0")}
@@ -330,12 +351,14 @@ function Dashboard({
   summary,
   onStartDaily,
   onStartLevel,
+  onStartRetest,
 }: {
   summary: Summary;
   onStartDaily: () => void;
   onStartLevel: () => void;
+  onStartRetest: () => void;
 }) {
-  const { student, dailyTest, levelExam, history } = summary;
+  const { student, dailyTest, levelExam, history, wrongCount } = summary;
   const badgeClass = levelBadgeClass(student.level, summary.masterLevel);
 
   const dailyCard = dailyTest.taken ? (
@@ -442,6 +465,15 @@ function Dashboard({
           </div>
         </div>
       </div>
+      {wrongCount > 0 && (
+        <div className="card">
+          <h2 className="mt0">🔁 오답 다시 풀기</h2>
+          <div className="callout wait">그동안 틀렸던 문제가 {wrongCount}개 남아있어요. 다 맞힐 때까지 몇 번이든 다시 풀 수 있어요!</div>
+          <button className="btn" onClick={onStartRetest}>
+            오답 {wrongCount}개 다시 풀기
+          </button>
+        </div>
+      )}
       <div className="grid-2">
         {dailyCard}
         {levelExamCard}
@@ -485,6 +517,7 @@ function Dashboard({
 
 function ResultView({ data, timedOut, onDone }: { data: SubmitResponse; timedOut: boolean; onDone: () => void }) {
   const isLevel = "leveledUp" in data;
+  const isRetest = "stillWrong" in data;
   const result = data.result;
   const detail = result.detail;
 
@@ -505,6 +538,21 @@ function ResultView({ data, timedOut, onDone }: { data: SubmitResponse; timedOut
           </p>
         ) : (
           <p className="muted">내일 다시 응시할 수 있어요. 오늘의 테스트로 연습해봐요!</p>
+        )}
+      </div>
+    );
+  } else if (isRetest) {
+    banner = (
+      <div className={`result-banner ${data.allCleared ? "pass" : ""}`}>
+        <div className="confetti">{data.allCleared ? "🎉✏️🎉" : "🔁"}</div>
+        <h2>{data.allCleared ? "오답을 전부 다 맞혔어요!" : "오답 다시 풀기 완료"}</h2>
+        <div className="score">
+          {result.score} / {result.total}
+        </div>
+        {data.allCleared ? (
+          <p className="muted">이제 남은 오답이 없어요. 완벽해요!</p>
+        ) : (
+          <p className="muted">아직 {data.stillWrong}개 남았어요. 대시보드로 돌아가면 다시 도전할 수 있어요.</p>
         )}
       </div>
     );

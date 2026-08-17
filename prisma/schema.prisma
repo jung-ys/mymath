@@ -21,9 +21,16 @@ model Student {
   lastDailyTestDate  String? // YYYY-MM-DD (KST 기준)
   createdAt          DateTime @default(now())
 
-  dailyTests DailyTest[]
-  levelExams LevelExam[]
-  levelUps   LevelUp[]
+  // 관리자가 학생별로 "오늘의 테스트" 출제 범위를 직접 지정할 때 사용.
+  // customTables가 비어있으면(기본) 단계(level) 기준 자동 범위를 그대로 쓴다.
+  customTables    Int[]    @default([]) // 관리자가 체크한 단(段) 목록, 예: [2,3,4]
+  customCount     Int? // 관리자가 지정한 문항 수. null이면 단 수에 맞춰 자동 산정
+  allowDuplicates Boolean  @default(false) // 체크 시 같은 문제가 여러 번 나올 수 있음
+
+  dailyTests     DailyTest[]
+  levelExams     LevelExam[]
+  levelUps       LevelUp[]
+  retestAttempts RetestAttempt[]
 }
 
 // 오늘의 테스트 응시 기록 (하루 1회)
@@ -58,6 +65,21 @@ model LevelExam {
   takenAt    DateTime @default(now())
 
   @@unique([studentId, level, date])
+  @@index([studentId, takenAt])
+}
+
+// 오답 재테스트 기록 - 그동안 틀렸던 문제만 모아서 다시 푸는 연습.
+// 하루 1회 제한이나 스트릭/자격 기준 계산에는 영향을 주지 않는 별도의 연습 기록이다.
+model RetestAttempt {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  score      Int
+  total      Int
+  elapsedSec Int?
+  detail     Json // [{a,b,answer,given,correct}]
+  takenAt    DateTime @default(now())
+
   @@index([studentId, takenAt])
 }
 

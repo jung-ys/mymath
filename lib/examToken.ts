@@ -22,7 +22,7 @@ export const EXAM_TOKEN_TTL_MS = 30 * 60 * 1000; // 30분
 
 export interface ExamTokenPayload {
   studentId: string;
-  kind: "daily" | "level";
+  kind: "daily" | "level" | "retest";
   level: number;
   problems: Problem[];
   config: TokenExamConfig;

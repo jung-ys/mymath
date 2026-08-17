@@ -381,6 +381,10 @@ function AdminDashboard() {
               masterLevel={masterLevel}
               levelOptions={levelOptions}
               onApplyLevel={(level) => onApplyLevel(selectedId, level)}
+              onConfigSaved={async () => {
+                await load();
+                await loadDetail(selectedId);
+              }}
             />
           )}
         </div>
@@ -394,13 +398,15 @@ function StudentDetail({
   masterLevel,
   levelOptions,
   onApplyLevel,
+  onConfigSaved,
 }: {
   detail: StudentDetailData;
   masterLevel: number;
   levelOptions: () => React.ReactNode;
   onApplyLevel: (level: number) => void;
+  onConfigSaved: () => Promise<void>;
 }) {
-  const { student, history, levelExam } = detail;
+  const { student, history, levelExam, customConfig, wrongCount } = detail;
   const [levelSel, setLevelSel] = useState(student.level);
 
   return (
@@ -425,7 +431,14 @@ function StudentDetail({
         </div>
       </div>
 
+      <p className="muted" style={{ fontSize: "0.85rem" }}>
+        현재 오답 노트: <strong style={{ color: wrongCount > 0 ? "var(--bad)" : "var(--good)" }}>{wrongCount}개</strong>
+        {wrongCount > 0 ? " 남음 (학생 화면에서 '오답 다시 풀기'로 연습 가능)" : " — 깨끗해요!"}
+      </p>
+
       {!student.isMaster && levelExam?.readiness && <ReadinessBlock r={levelExam.readiness} />}
+
+      <CustomConfigEditor studentId={student.id} customConfig={customConfig} onSaved={onConfigSaved} />
 
       <div className="grid-2">
         <div>
@@ -488,5 +501,130 @@ function StudentDetail({
         </div>
       </div>
     </>
+  );
+}
+
+const ALL_TABLES = Array.from({ length: 18 }, (_, i) => i + 2); // 2~19
+
+function CustomConfigEditor({
+  studentId,
+  customConfig,
+  onSaved,
+}: {
+  studentId: string;
+  customConfig: StudentDetailData["customConfig"];
+  onSaved: () => Promise<void>;
+}) {
+  const [tables, setTables] = useState<Set<number>>(new Set(customConfig.tables));
+  const [questionCount, setQuestionCount] = useState(customConfig.questionCount ? String(customConfig.questionCount) : "");
+  const [allowDuplicates, setAllowDuplicates] = useState(customConfig.allowDuplicates);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  const isCustom = customConfig.tables.length > 0;
+
+  function toggleTable(t: number) {
+    setTables((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
+  }
+
+  async function save(tablesToSave: number[]) {
+    setSaving(true);
+    setErr("");
+    try {
+      await api(`/api/admin/students/${studentId}/custom-config`, {
+        method: "POST",
+        body: {
+          tables: tablesToSave,
+          questionCount: tablesToSave.length && questionCount.trim() ? Number(questionCount) : null,
+          allowDuplicates,
+        },
+      });
+      await onSaved();
+    } catch (ex) {
+      setErr(ex instanceof ApiError ? ex.message : "저장에 실패했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ background: "#f8f6ff" }}>
+      <h3 className="mt0">🎯 출제 범위 직접 설정 (오늘의 테스트)</h3>
+      <p className="muted" style={{ fontSize: "0.82rem" }}>
+        {isCustom
+          ? "현재 이 학생은 아래 커스텀 설정으로 오늘의 테스트가 출제되고 있어요."
+          : "아직 커스텀 설정이 없어요. 단계(레벨) 기준 자동 범위로 출제 중이에요. 이제 막 시작한 학생이라면 원하는 단만 체크해서 범위를 좁혀줄 수 있어요."}
+      </p>
+
+      <label style={{ marginBottom: 6 }}>출제할 단 선택</label>
+      <div className="tag-row">
+        {ALL_TABLES.map((t) => (
+          <label
+            key={t}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              background: tables.has(t) ? "var(--brand)" : "#fff",
+              color: tables.has(t) ? "#fff" : "var(--ink)",
+              border: "1.5px solid var(--line)",
+              borderRadius: 8,
+              padding: "6px 10px",
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: "0.85rem",
+            }}
+          >
+            <input type="checkbox" checked={tables.has(t)} onChange={() => toggleTable(t)} style={{ display: "none" }} />
+            {t}단
+          </label>
+        ))}
+      </div>
+
+      <div className="grid-2" style={{ marginTop: 14 }}>
+        <div>
+          <label htmlFor="custom-count">문항 수 (비워두면 자동 계산)</label>
+          <input
+            type="number"
+            id="custom-count"
+            min={1}
+            max={200}
+            placeholder="자동"
+            value={questionCount}
+            onChange={(e) => setQuestionCount(e.target.value)}
+          />
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", paddingBottom: 12 }}>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, margin: 0 }}>
+            <input type="checkbox" checked={allowDuplicates} onChange={(e) => setAllowDuplicates(e.target.checked)} />
+            문제 중복 가능 (선택한 단 조합보다 문항 수가 많을 때 반복 출제)
+          </label>
+        </div>
+      </div>
+
+      {err && <div className="error-box show">{err}</div>}
+
+      <button className="btn small" disabled={saving} onClick={() => save(Array.from(tables))}>
+        {saving ? "저장 중..." : "이 설정으로 저장"}
+      </button>{" "}
+      {isCustom && (
+        <button
+          className="btn small ghost"
+          disabled={saving}
+          onClick={() => {
+            setTables(new Set());
+            setQuestionCount("");
+            save([]);
+          }}
+        >
+          기본값(레벨 기준 자동)으로 되돌리기
+        </button>
+      )}
+    </div>
   );
 }

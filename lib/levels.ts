@@ -138,22 +138,36 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 // tables 배열과 문항 수를 받아 문제 목록 생성 (오늘의 테스트용, 무작위 샘플링).
-export function generateProblems(tables: number[], count: number): Problem[] {
+// allowDuplicates가 false(기본)면 가능한 조합 수를 넘는 문항 수는 조합 수만큼으로 잘라낸다.
+// allowDuplicates가 true면 문항 수를 정확히 맞추기 위해 같은 문제가 반복될 수 있다.
+export function generateProblems(tables: number[], count: number, allowDuplicates = false): Problem[] {
   const pairs: [number, number][] = [];
   tables.forEach((t) => {
     for (let m = 1; m <= 9; m++) pairs.push([t, m]);
   });
+  if (pairs.length === 0) return [];
   const shuffled = shuffle(pairs);
-  const chosen: [number, number][] = [];
+  let chosen: [number, number][];
   if (count <= shuffled.length) {
-    chosen.push(...shuffled.slice(0, count));
-  } else {
-    // 문항 수가 조합 수보다 많으면 무작위 반복 허용
+    chosen = shuffled.slice(0, count);
+  } else if (allowDuplicates) {
+    chosen = shuffled.slice();
     while (chosen.length < count) {
       chosen.push(pairs[Math.floor(Math.random() * pairs.length)]);
     }
+  } else {
+    // 중복 비허용인데 조합 수보다 문항 수가 많으면 조합 수만큼으로 잘라낸다.
+    chosen = shuffled;
   }
   return shuffle(chosen).map(([a, b]) => ({ a, b, answer: a * b }));
+}
+
+// 관리자가 지정한 문항 수(customCount)가 있으면 그대로 쓰고, 없으면 단 수 기준 자동 산정.
+export function dailyTestConfigForCustom(tables: number[], customCount: number | null | undefined) {
+  if (!customCount || customCount <= 0) return dailyTestConfigFor(tables);
+  const questionCount = Math.min(200, Math.max(1, Math.round(customCount)));
+  const timeLimitSec = Math.round(questionCount * DAILY_SEC_PER_QUESTION);
+  return { questionCount, timeLimitSec };
 }
 
 // 승급 시험용 문제 생성: 단마다 hardMultipliers(자주 틀리는 곱셈)를 반드시 포함하고,

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError, levelBadgeClass, fmtDate, fmtDateOnly } from "@/lib/clientUtils";
 import type { studentSummary } from "@/lib/studentView";
+import { ACADEMY_NAME } from "@/lib/branding";
 
 type StudentDetailData = Awaited<ReturnType<typeof studentSummary>>;
 
@@ -110,7 +111,10 @@ export default function AdminPage() {
       <>
         <header className="topbar">
           <div className="brand">
-            <span className="dot">✕</span> 구구단 레벨업 <span className="tag">관리자</span>
+            <div className="brand-title">
+              <span className="dot">✕</span> 구구단 레벨업 <span className="tag">관리자</span>
+            </div>
+            <div className="brand-academy">{ACADEMY_NAME}</div>
           </div>
           <nav>
             <Link href="/board">게시판</Link>
@@ -138,7 +142,10 @@ export default function AdminPage() {
     <>
       <header className="topbar">
         <div className="brand">
-          <span className="dot">✕</span> 구구단 레벨업 <span className="tag">관리자</span>
+          <div className="brand-title">
+            <span className="dot">✕</span> 구구단 레벨업 <span className="tag">관리자</span>
+          </div>
+          <div className="brand-academy">{ACADEMY_NAME}</div>
         </div>
         <nav>
           <Link href="/board">게시판</Link>
@@ -187,8 +194,7 @@ function AdminDashboard() {
     })();
   }, [load]);
 
-  const loadDetail = useCallback(async (id: string) => {
-    setSelectedId(id);
+  const fetchDetail = useCallback(async (id: string) => {
     setDetail(null);
     setDetailErr("");
     try {
@@ -198,6 +204,21 @@ function AdminDashboard() {
       setDetailErr(ex instanceof ApiError ? ex.message : "불러오지 못했습니다.");
     }
   }, []);
+
+  // 이름을 다시 누르면 열려있던 패널이 닫히도록 토글한다.
+  const toggleDetail = useCallback(
+    (id: string) => {
+      if (selectedId === id) {
+        setSelectedId(null);
+        setDetail(null);
+        setDetailErr("");
+        return;
+      }
+      setSelectedId(id);
+      fetchDetail(id);
+    },
+    [selectedId, fetchDetail]
+  );
 
   async function onAddStudent(e: React.FormEvent) {
     e.preventDefault();
@@ -251,7 +272,7 @@ function AdminDashboard() {
     try {
       await api(`/api/admin/students/${id}/adjust-level`, { method: "POST", body: { level } });
       await load();
-      await loadDetail(id);
+      await fetchDetail(id);
     } catch (ex) {
       alert(ex instanceof ApiError ? ex.message : "실패했습니다.");
     }
@@ -344,7 +365,7 @@ function AdminDashboard() {
                     <button
                       className="link"
                       style={{ color: "var(--brand)", fontWeight: 700, textDecoration: "underline" }}
-                      onClick={() => loadDetail(s.id)}
+                      onClick={() => toggleDetail(s.id)}
                     >
                       {s.name}
                     </button>
@@ -383,7 +404,7 @@ function AdminDashboard() {
               onApplyLevel={(level) => onApplyLevel(selectedId, level)}
               onConfigSaved={async () => {
                 await load();
-                await loadDetail(selectedId);
+                await fetchDetail(selectedId);
               }}
             />
           )}

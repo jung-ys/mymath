@@ -128,7 +128,7 @@ export function tablesForStudent(level: number): number[] {
   return Array.from(set);
 }
 
-function shuffle<T>(arr: T[]): T[] {
+export function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -170,6 +170,12 @@ export function dailyTestConfigForCustom(tables: number[], customCount: number |
   return { questionCount, timeLimitSec };
 }
 
+// 전날 오답이 강제로 포함되어 최종 문항 수가 원래 계획보다 늘어났을 때,
+// 그 실제 문항 수에 맞춰 제한시간을 다시 계산한다.
+export function timeLimitForDailyCount(count: number): number {
+  return Math.round(count * DAILY_SEC_PER_QUESTION);
+}
+
 // 승급 시험용 문제 생성: 단마다 hardMultipliers(자주 틀리는 곱셈)를 반드시 포함하고,
 // perTableQuota 만큼 채운다. quota가 9면 그 단의 ×1~9 전체를 빠짐없이 출제한다.
 export function generateLevelExamProblems(levelDef: LevelDef): Problem[] {
@@ -201,4 +207,25 @@ export function generateLevelExamProblems(levelDef: LevelDef): Problem[] {
 export function todayKST(date: Date = new Date()): string {
   const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
   return kst.toISOString().slice(0, 10);
+}
+
+// "YYYY-MM-DD"(KST 기준 달력일)를 UTC Date 범위로 변환한다. takenAt(DateTime) 필드를
+// 날짜 범위로 필터링할 때 쓴다.
+export function kstDayBoundsUtc(dateStr: string): { start: Date; end: Date } {
+  return {
+    start: new Date(`${dateStr}T00:00:00+09:00`),
+    end: new Date(`${dateStr}T23:59:59.999+09:00`),
+  };
+}
+
+// 오늘(KST) 기준으로 n일 전 날짜 문자열을 반환한다 (리포트 기간 기본값 등에 사용).
+export function daysAgoKST(n: number, from: Date = new Date()): string {
+  return todayKST(new Date(from.getTime() - n * 24 * 60 * 60 * 1000));
+}
+
+// "YYYY-MM-DD" 두 날짜 사이의 일수 차이 (b - a).
+export function daysBetween(dateStrA: string, dateStrB: string): number {
+  const a = new Date(dateStrA + "T00:00:00Z");
+  const b = new Date(dateStrB + "T00:00:00Z");
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
 }

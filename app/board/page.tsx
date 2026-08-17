@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/clientUtils";
+import { ACADEMY_NAME } from "@/lib/branding";
 
 interface LevelDef {
   level: number;
@@ -55,7 +56,10 @@ export default function BoardPage() {
     <>
       <header className="topbar">
         <div className="brand">
-          <span className="dot">✕</span> 구구단 레벨업 게시판
+          <div className="brand-title">
+            <span className="dot">✕</span> 구구단 레벨업 게시판
+          </div>
+          <div className="brand-academy">{ACADEMY_NAME}</div>
         </div>
         <nav>
           <Link href="/">학생 로그인</Link>
@@ -64,6 +68,7 @@ export default function BoardPage() {
 
       <div className="wrap">
         <div className="hero">
+          <p className="academy-name">{ACADEMY_NAME}</p>
           <h1>🏆 우리반 구구단 레벨업 현황</h1>
           {data && <p className="muted">오늘 {data.todayDailyCount}명이 오늘의 테스트를 완료했어요!</p>}
         </div>

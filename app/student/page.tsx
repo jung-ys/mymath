@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, ApiError, levelBadgeClass, fmtDateOnly } from "@/lib/clientUtils";
+import { api, ApiError, levelBadgeClass, fmtDate } from "@/lib/clientUtils";
+import { ACADEMY_NAME } from "@/lib/branding";
 
 interface LevelDef {
   level: number;
@@ -71,6 +72,7 @@ interface ExamState {
   config: ExamConfig;
   levelDef?: LevelDef;
   startTs: number;
+  forcedWrongCount?: number;
 }
 
 interface ProblemDetail {
@@ -184,9 +186,13 @@ export default function StudentPage() {
     const startEndpoint =
       kind === "daily" ? "/api/daily-test/start" : kind === "level" ? "/api/level-exam/start" : "/api/wrong-retest/start";
     try {
-      const data = await api<{ examToken: string; problems: Problem[]; config: ExamConfig; levelDef?: LevelDef }>(startEndpoint, {
-        method: "POST",
-      });
+      const data = await api<{
+        examToken: string;
+        problems: Problem[];
+        config: ExamConfig;
+        levelDef?: LevelDef;
+        forcedWrongCount?: number;
+      }>(startEndpoint, { method: "POST" });
       submittedRef.current = false;
       setTimedOutFlag(false);
       setExamState({
@@ -196,6 +202,7 @@ export default function StudentPage() {
         config: data.config,
         levelDef: data.levelDef,
         startTs: Date.now(),
+        forcedWrongCount: data.forcedWrongCount,
       });
       setAnswers(new Array(data.problems.length).fill(""));
       setRemaining(data.config.timeLimitSec);
@@ -259,7 +266,10 @@ export default function StudentPage() {
     <>
       <header className="topbar">
         <div className="brand">
-          <span className="dot">✕</span> 구구단 레벨업
+          <div className="brand-title">
+            <span className="dot">✕</span> 구구단 레벨업
+          </div>
+          <div className="brand-academy">{ACADEMY_NAME}</div>
         </div>
         <nav>
           <span className="muted">{name} 님</span>
@@ -289,6 +299,11 @@ export default function StudentPage() {
                   ? "🔁 오답 다시 풀기"
                   : `🏆 ${examState.levelDef?.title ?? ""} 승급 시험`}
             </h2>
+            {examState.kind === "daily" && !!examState.forcedWrongCount && (
+              <p className="muted center" style={{ fontSize: "0.85rem", marginTop: -4 }}>
+                이 중 {examState.forcedWrongCount}문제는 예전에 틀렸던 문제 복습이에요 🔁
+              </p>
+            )}
             <div className="timer" style={{ color: remaining <= 30 ? "var(--bad)" : undefined }}>
               {String(Math.floor(remaining / 60)).padStart(2, "0")}:{String(remaining % 60).padStart(2, "0")}
             </div>
@@ -430,7 +445,6 @@ function Dashboard({
   const historyRows = [
     ...history.daily.map((d) => ({
       typeLabel: "오늘의 테스트",
-      dateLabel: fmtDateOnly(d.date),
       score: d.score,
       total: d.total,
       passed: null as boolean | null,
@@ -438,7 +452,6 @@ function Dashboard({
     })),
     ...history.levelExams.map((e) => ({
       typeLabel: `${e.level}단계 승급시험`,
-      dateLabel: "",
       score: e.score,
       total: e.total,
       passed: e.passed,
@@ -485,6 +498,7 @@ function Dashboard({
             <thead>
               <tr>
                 <th>종류</th>
+                <th>날짜/시각</th>
                 <th>점수</th>
                 <th>결과</th>
               </tr>
@@ -493,6 +507,7 @@ function Dashboard({
               {historyRows.map((h, i) => (
                 <tr key={i}>
                   <td>{h.typeLabel}</td>
+                  <td>{fmtDate(h.ts)}</td>
                   <td>
                     {h.score}/{h.total}
                   </td>

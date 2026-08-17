@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/clientUtils";
+import { ACADEMY_NAME } from "@/lib/branding";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,7 +39,10 @@ export default function LoginPage() {
     <>
       <header className="topbar">
         <div className="brand">
-          <span className="dot">✕</span> 구구단 레벨업
+          <div className="brand-title">
+            <span className="dot">✕</span> 구구단 레벨업
+          </div>
+          <div className="brand-academy">{ACADEMY_NAME}</div>
         </div>
         <nav>
           <Link href="/board">레벨업 게시판</Link>
@@ -48,6 +52,7 @@ export default function LoginPage() {
 
       <div className="wrap narrow">
         <div className="hero">
+          <p className="academy-name">{ACADEMY_NAME}</p>
           <h1>구구단 레벨업 시험</h1>
           <p>
             2단부터 19단까지, 4단계로 나누어 승급 시험을 봐요.

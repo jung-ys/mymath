@@ -1,0 +1,75 @@
+// 구구단 레벨업 시스템 - 데이터 모델
+// 학생(Student)은 이름 + PIN(숫자 비밀번호)으로 로그인한다.
+// 배포(Vercel) 환경에서는 로컬 파일이 유지되지 않으므로 Postgres를 사용한다.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 학생
+model Student {
+  id                 String   @id @default(cuid())
+  name               String   @unique
+  pinHash            String
+  level              Int      @default(1) // 1~4 = 도전 중인 단계, 5 = 마스터
+  streak             Int      @default(0) // 오늘의 테스트 연속 응시일
+  lastDailyTestDate  String? // YYYY-MM-DD (KST 기준)
+  createdAt          DateTime @default(now())
+
+  dailyTests DailyTest[]
+  levelExams LevelExam[]
+  levelUps   LevelUp[]
+}
+
+// 오늘의 테스트 응시 기록 (하루 1회)
+model DailyTest {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  date       String // YYYY-MM-DD (KST 기준)
+  score      Int
+  total      Int
+  elapsedSec Int?
+  detail     Json // [{a,b,answer,given,correct}]
+  takenAt    DateTime @default(now())
+
+  @@unique([studentId, date])
+  @@index([studentId, takenAt])
+}
+
+// 승급 시험 응시 기록 (같은 단계는 하루 1회)
+model LevelExam {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  level      Int
+  date       String // YYYY-MM-DD (KST 기준)
+  score      Int
+  total      Int
+  passed     Boolean
+  timedOut   Boolean  @default(false)
+  elapsedSec Int?
+  detail     Json
+  takenAt    DateTime @default(now())
+
+  @@unique([studentId, level, date])
+  @@index([studentId, takenAt])
+}
+
+// 레벨업(승급 통과) 이력 - 보상(셀레나 달러/간식쿠폰) 지급 체크리스트로도 사용
+model LevelUp {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  level       Int // 통과한 단계
+  awardedAt   DateTime @default(now())
+  rewardGiven Boolean  @default(false)
+  rewardNote  String   @default("")
+
+  @@index([studentId])
+}

@@ -1,13 +1,29 @@
 {
   "name": "mymath",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "구구단(2단~19단) 4단계 레벨업 승급 시험 웹 시스템",
-  "main": "server.js",
+  "description": "구구단(2단~19단) 4단계 레벨업 승급 시험 웹 시스템 (Next.js + Postgres, Vercel 배포용)",
   "scripts": {
-    "start": "node server.js"
+    "dev": "next dev",
+    "build": "prisma generate && prisma migrate deploy && next build",
+    "start": "next start",
+    "lint": "eslint",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate dev"
   },
-  "engines": {
-    "node": ">=18"
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "next": "16.3.1",
+    "prisma": "^6.19.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.1",
+    "typescript": "^5"
   }
 }

@@ -590,13 +590,23 @@ function CustomConfigEditor({
         <div>
           <label htmlFor="custom-count">문항 수 (비워두면 자동 계산)</label>
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             id="custom-count"
-            min={1}
-            max={200}
             placeholder="자동"
             value={questionCount}
-            onChange={(e) => setQuestionCount(e.target.value)}
+            onChange={(e) => {
+              // 숫자만 남기고, 최대 3자리(최대 200)까지만 허용 — 키가 눌린 채로 있어도
+              // 입력이 끝없이 길어지지 않도록 방어한다.
+              const digitsOnly = e.target.value.replace(/[^0-9]/g, "").slice(0, 3);
+              setQuestionCount(digitsOnly);
+            }}
+            onBlur={() => {
+              const n = Number(questionCount);
+              if (questionCount && (!Number.isFinite(n) || n < 1)) setQuestionCount("1");
+              else if (n > 200) setQuestionCount("200");
+            }}
           />
         </div>
         <div style={{ display: "flex", alignItems: "flex-end", paddingBottom: 12 }}>

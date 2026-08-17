@@ -38,12 +38,30 @@ function levelUpNoteHtml() {
   return `<p class="muted" style="font-size:0.85rem">승급 시험을 통과하면 다음 단계로 올라가요. 선생님께 알려서 셀레나 달러와 간식 쿠폰을 받으세요! 🎉</p>`;
 }
 
+function readinessHtml(r) {
+  const streakPct = Math.min(100, Math.round((r.streak / r.minStreakDays) * 100));
+  const accBase = r.recentCount > 0 ? r.avgAccuracyPct : 0;
+  const accPct = Math.min(100, Math.round((accBase / r.minAvgAccuracyPct) * 100));
+  const accLabel = r.recentCount < r.minRecentTests ? `기록 ${r.recentCount}/${r.minRecentTests}회` : `${r.avgAccuracyPct}%`;
+  return `
+    <div class="readiness">
+      <div class="readiness-row">
+        <div class="row-label"><span>연속 출석 <span class="${r.streakOk ? 'ok' : ''}">${r.streak}/${r.minStreakDays}일</span></span></div>
+        <div class="mini-track"><div class="mini-fill" style="width:${streakPct}%;background:${r.streakOk ? 'var(--good)' : 'var(--brand)'}"></div></div>
+      </div>
+      <div class="readiness-row">
+        <div class="row-label"><span>최근 ${r.minRecentTests}회 평균 정답률</span><span class="${r.accuracyOk ? 'ok' : ''}">${accLabel} / ${r.minAvgAccuracyPct}%</span></div>
+        <div class="mini-track"><div class="mini-fill" style="width:${accPct}%;background:${r.accuracyOk ? 'var(--good)' : 'var(--brand)'}"></div></div>
+      </div>
+    </div>`;
+}
+
 function renderDashboard() {
   const { student, dailyTest, levelExam, history, levels, masterLevel } = summary;
   const badgeClass = levelBadgeClass(student.level, masterLevel);
 
   let levelExamCard;
-  if (!levelExam.available && student.isMaster) {
+  if (student.isMaster) {
     levelExamCard = `
       <div class="card">
         <h2 class="mt0">🏆 승급 시험</h2>
@@ -51,15 +69,25 @@ function renderDashboard() {
       </div>`;
   } else {
     const ld = levelExam.levelDef;
-    const disabled = !levelExam.available ? 'disabled' : '';
-    const note = levelExam.attemptedToday
-      ? `<p class="muted" style="font-size:0.85rem">오늘은 이미 응시했어요. 내일 다시 도전할 수 있어요.</p>`
-      : `<p class="muted" style="font-size:0.85rem">${levelExam.config.questionCount}문제 중 ${levelExam.config.passScore}개 이상, 제한시간 ${Math.floor(levelExam.config.timeLimitSec / 60)}분 안에 풀면 통과!</p>`;
+    const r = levelExam.readiness;
+    let callout;
+    let buttonDisabled = 'disabled';
+    if (!r.eligible) {
+      callout = `<div class="callout wait">아직 승급 시험 자격 기준을 채우지 못했어요. 아래 두 가지를 모두 채우면 시험을 볼 수 있어요!</div>`;
+    } else if (levelExam.attemptedToday) {
+      callout = `<div class="callout go">자격을 갖췄어요! 오늘은 이미 응시했으니 내일 다시 도전하세요.</div>`;
+    } else {
+      callout = `<div class="callout go">🎉 자격 기준을 모두 채웠어요! 지금 승급 시험을 볼 수 있어요.</div>`;
+      buttonDisabled = '';
+    }
+    const configNote = `<p class="muted" style="font-size:0.85rem">${levelExam.config.questionCount}문제 중 ${levelExam.config.passScore}개 이상, 제한시간 ${Math.floor(levelExam.config.timeLimitSec / 60)}분 안에 풀면 통과!</p>`;
     levelExamCard = `
       <div class="card">
         <h2 class="mt0">🏆 ${ld.title} 승급 시험 <span class="tag">${ld.range}</span></h2>
-        ${note}
-        <button class="btn" id="start-level-exam" ${disabled}>승급 시험 시작</button>
+        ${callout}
+        ${readinessHtml(r)}
+        ${configNote}
+        <button class="btn" id="start-level-exam" ${buttonDisabled}>승급 시험 시작</button>
         ${levelUpNoteHtml()}
       </div>`;
   }
@@ -155,7 +183,7 @@ async function startExam(kind) {
     renderExam();
   } catch (ex) {
     alert(ex.message);
-    if (ex.status === 409) loadSummary();
+    if (ex.status === 409 || ex.status === 403) loadSummary();
   }
 }
 

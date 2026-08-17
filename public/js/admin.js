@@ -224,8 +224,28 @@ async function showDetail(studentId) {
   }
 }
 
+function readinessHtmlAdmin(r) {
+  if (!r) return '';
+  const streakPct = Math.min(100, Math.round((r.streak / r.minStreakDays) * 100));
+  const accBase = r.recentCount > 0 ? r.avgAccuracyPct : 0;
+  const accPct = Math.min(100, Math.round((accBase / r.minAvgAccuracyPct) * 100));
+  const accLabel = r.recentCount < r.minRecentTests ? `기록 ${r.recentCount}/${r.minRecentTests}회` : `${r.avgAccuracyPct}%`;
+  return `
+    <div class="callout ${r.eligible ? 'go' : 'wait'}">${r.eligible ? '승급 시험 자격 충족' : '승급 시험 자격 미충족'}</div>
+    <div class="readiness">
+      <div class="readiness-row">
+        <div class="row-label"><span>연속 출석</span><span class="${r.streakOk ? 'ok' : ''}">${r.streak}/${r.minStreakDays}일</span></div>
+        <div class="mini-track"><div class="mini-fill" style="width:${streakPct}%;background:${r.streakOk ? 'var(--good)' : 'var(--brand)'}"></div></div>
+      </div>
+      <div class="readiness-row">
+        <div class="row-label"><span>최근 ${r.minRecentTests}회 평균 정답률</span><span class="${r.accuracyOk ? 'ok' : ''}">${accLabel} / ${r.minAvgAccuracyPct}%</span></div>
+        <div class="mini-track"><div class="mini-fill" style="width:${accPct}%;background:${r.accuracyOk ? 'var(--good)' : 'var(--brand)'}"></div></div>
+      </div>
+    </div>`;
+}
+
 function renderDetail(card, summary) {
-  const { student, history } = summary;
+  const { student, history, levelExam } = summary;
   const dailyRows = history.daily
     .map((d) => `<tr><td>${fmtDateOnly(d.date)}</td><td>${d.score}/${d.total}</td><td>${fmtDate(d.takenAt)}</td></tr>`)
     .join('');
@@ -240,6 +260,7 @@ function renderDetail(card, summary) {
     <div class="flex-between">
       <h2 class="mt0">${student.name} 님 상세 기록 <span class="badge ${levelBadgeClass(student.level, masterLevel)}">${student.levelTitle}</span></h2>
       <div>
+        <a class="btn small secondary" href="/report.html?id=${student.id}" target="_blank" rel="noopener">학부모 리포트 보기</a>
         <label style="display:inline-flex;align-items:center;gap:6px;margin:0">
           단계 직접 조정:
           <select id="detail-level">${levelOptionsHtml(student.level)}</select>
@@ -247,6 +268,7 @@ function renderDetail(card, summary) {
         <button class="btn small" id="apply-level">적용</button>
       </div>
     </div>
+    ${student.isMaster ? '' : readinessHtmlAdmin(levelExam.readiness)}
     <div class="grid-2">
       <div>
         <h3>오늘의 테스트 이력</h3>

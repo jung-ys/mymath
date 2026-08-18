@@ -1,10 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, levelBadgeClass, fmtDate } from "@/lib/clientUtils";
 import { ACADEMY_NAME } from "@/lib/branding";
+import {
+  CHEER_MESSAGES,
+  LEVEL_PASS_MESSAGES,
+  LEVEL_FAIL_MESSAGES,
+  RETEST_CLEAR_MESSAGES,
+  RETEST_PARTIAL_MESSAGES,
+  pickRandom,
+} from "@/lib/encouragement";
 
 interface LevelDef {
   level: number;
@@ -19,14 +27,10 @@ interface ExamConfig {
 }
 interface Readiness {
   eligible: boolean;
-  streakOk: boolean;
-  accuracyOk: boolean;
-  streak: number;
-  minStreakDays: number;
-  recentCount: number;
-  minRecentTests: number;
-  avgAccuracyPct: number;
-  minAvgAccuracyPct: number;
+  qualifyingStreak: number;
+  requiredStreak: number;
+  requiredAccuracyPct: number;
+  totalTestsSoFar: number;
 }
 interface Summary {
   student: {
@@ -111,31 +115,18 @@ interface RetestSubmitResponse {
 type SubmitResponse = DailySubmitResponse | LevelSubmitResponse | RetestSubmitResponse;
 
 function ReadinessBars({ r }: { r: Readiness }) {
-  const streakPct = Math.min(100, Math.round((r.streak / r.minStreakDays) * 100));
-  const accBase = r.recentCount > 0 ? r.avgAccuracyPct : 0;
-  const accPct = Math.min(100, Math.round((accBase / r.minAvgAccuracyPct) * 100));
-  const accLabel = r.recentCount < r.minRecentTests ? `기록 ${r.recentCount}/${r.minRecentTests}회` : `${r.avgAccuracyPct}%`;
+  const pct = Math.min(100, Math.round((r.qualifyingStreak / r.requiredStreak) * 100));
   return (
     <div className="readiness">
       <div className="readiness-row">
         <div className="row-label">
-          <span>
-            연속 출석 <span className={r.streakOk ? "ok" : ""}>{r.streak}/{r.minStreakDays}일</span>
+          <span>연속 {r.requiredAccuracyPct}% 이상 달성</span>
+          <span className={r.eligible ? "ok" : ""}>
+            {r.qualifyingStreak}/{r.requiredStreak}회
           </span>
         </div>
         <div className="mini-track">
-          <div className="mini-fill" style={{ width: `${streakPct}%`, background: r.streakOk ? "var(--good)" : "var(--brand)" }} />
-        </div>
-      </div>
-      <div className="readiness-row">
-        <div className="row-label">
-          <span>최근 {r.minRecentTests}회 평균 정답률</span>
-          <span className={r.accuracyOk ? "ok" : ""}>
-            {accLabel} / {r.minAvgAccuracyPct}%
-          </span>
-        </div>
-        <div className="mini-track">
-          <div className="mini-fill" style={{ width: `${accPct}%`, background: r.accuracyOk ? "var(--good)" : "var(--brand)" }} />
+          <div className="mini-fill" style={{ width: `${pct}%`, background: r.eligible ? "var(--good)" : "var(--brand)" }} />
         </div>
       </div>
     </div>
@@ -414,7 +405,12 @@ function Dashboard({
     let callout: React.ReactNode;
     let disabled = true;
     if (!r.eligible) {
-      callout = <div className="callout wait">아직 승급 시험 자격 기준을 채우지 못했어요. 아래 두 가지를 모두 채우면 시험을 볼 수 있어요!</div>;
+      callout = (
+        <div className="callout wait">
+          아직 승급 시험 자격 기준을 채우지 못했어요. 오늘의 테스트에서 연속 {r.requiredAccuracyPct}% 이상을{" "}
+          {r.requiredStreak}회 달성하면 시험을 볼 수 있어요!
+        </div>
+      );
     } else if (levelExam.attemptedToday) {
       callout = <div className="callout go">자격을 갖췄어요! 오늘은 이미 응시했으니 내일 다시 도전하세요.</div>;
     } else {
@@ -530,15 +526,35 @@ function Dashboard({
   );
 }
 
+function Mascot({ mood, message }: { mood: "cheer" | "strong" | "soft"; message: string }) {
+  const face = mood === "strong" ? "🐻👏" : mood === "soft" ? "🐻" : "🐻🎉";
+  return (
+    <div className={`mascot mascot-${mood}`}>
+      <div className="mascot-face">{face}</div>
+      <div className="mascot-bubble">{message}</div>
+    </div>
+  );
+}
+
 function ResultView({ data, timedOut, onDone }: { data: SubmitResponse; timedOut: boolean; onDone: () => void }) {
   const isLevel = "leveledUp" in data;
   const isRetest = "stillWrong" in data;
   const result = data.result;
   const detail = result.detail;
 
+  // 결과 화면이 다시 렌더링돼도 멘트가 계속 바뀌지 않도록 결과 id에 묶어 한 번만 고른다.
+  const mascotMessage = useMemo(() => {
+    if (isLevel) return pickRandom(data.result.passed ? LEVEL_PASS_MESSAGES : LEVEL_FAIL_MESSAGES);
+    if (isRetest) return pickRandom(data.allCleared ? RETEST_CLEAR_MESSAGES : RETEST_PARTIAL_MESSAGES);
+    return pickRandom(CHEER_MESSAGES);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result.id]);
+
   let banner: React.ReactNode;
+  let mascotMood: "cheer" | "strong" | "soft";
   if (isLevel) {
     const passed = data.result.passed;
+    mascotMood = passed ? "strong" : "soft";
     banner = (
       <div className={`result-banner ${passed ? "pass" : "fail"}`}>
         <div className="confetti">{passed ? "🎉🏆🎉" : "💪"}</div>
@@ -557,6 +573,7 @@ function ResultView({ data, timedOut, onDone }: { data: SubmitResponse; timedOut
       </div>
     );
   } else if (isRetest) {
+    mascotMood = data.allCleared ? "strong" : "cheer";
     banner = (
       <div className={`result-banner ${data.allCleared ? "pass" : ""}`}>
         <div className="confetti">{data.allCleared ? "🎉✏️🎉" : "🔁"}</div>
@@ -572,6 +589,7 @@ function ResultView({ data, timedOut, onDone }: { data: SubmitResponse; timedOut
       </div>
     );
   } else {
+    mascotMood = "cheer";
     banner = (
       <div className="result-banner pass">
         <div className="confetti">✏️</div>
@@ -589,6 +607,7 @@ function ResultView({ data, timedOut, onDone }: { data: SubmitResponse; timedOut
   return (
     <>
       {banner}
+      <Mascot mood={mascotMood} message={mascotMessage} />
       <div className="card">
         <h2 className="mt0">채점 결과</h2>
         <div className="problem-grid">

@@ -26,6 +26,7 @@ model Student {
   customTables    Int[]    @default([]) // 관리자가 체크한 단(段) 목록, 예: [2,3,4]
   customCount     Int? // 관리자가 지정한 문항 수. null이면 단 수에 맞춰 자동 산정
   allowDuplicates Boolean  @default(false) // 체크 시 같은 문제가 여러 번 나올 수 있음
+  problemOrder    String   @default("random") // "random" | "sequential" | "reverse"
 
   dailyTests     DailyTest[]
   levelExams     LevelExam[]

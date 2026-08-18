@@ -49,31 +49,30 @@ export async function studentHistory(studentId: string, limit = 20) {
   return { daily, levelExams, levelUps };
 }
 
-// 승급 시험 자격 기준: (1) 오늘의 테스트 연속 응시일수, (2) 최근 N회 평균 정답률.
-// 둘 다 만족해야 시험 버튼이 열린다.
-export async function computeReadiness(studentId: string, streak: number) {
-  const { minStreakDays, minRecentTests, minAvgAccuracy } = READINESS_CONFIG;
+// 승급 시험 자격 기준: 오늘의 테스트를 최근 것부터 거슬러 올라가며 정답률이
+// requiredAccuracy(90%) 이상인 기록이 연속으로 requiredStreak(10)회 이어져야 한다.
+// (예전의 "연속 출석일" 조건은 제외하고, 정답률 연속 달성 하나로 단순화)
+export async function computeReadiness(studentId: string) {
+  const { requiredStreak, requiredAccuracy } = READINESS_CONFIG;
+  // 연속 기록이 끊기는 지점까지만 확인하면 되므로 필요한 것보다 조금 더 넉넉히 가져온다.
   const recentTests = await prisma.dailyTest.findMany({
     where: { studentId },
     orderBy: { takenAt: "desc" },
-    take: minRecentTests,
+    take: requiredStreak + 10,
   });
-  const haveEnough = recentTests.length >= minRecentTests;
-  const avgAccuracy = recentTests.length
-    ? recentTests.reduce((sum, t) => sum + t.score / t.total, 0) / recentTests.length
-    : 0;
-  const streakOk = streak >= minStreakDays;
-  const accuracyOk = haveEnough && avgAccuracy >= minAvgAccuracy;
+
+  let qualifyingStreak = 0;
+  for (const t of recentTests) {
+    if (t.total > 0 && t.score / t.total >= requiredAccuracy) qualifyingStreak++;
+    else break;
+  }
+
   return {
-    eligible: streakOk && accuracyOk,
-    streakOk,
-    accuracyOk,
-    streak,
-    minStreakDays,
-    recentCount: recentTests.length,
-    minRecentTests,
-    avgAccuracyPct: Math.round(avgAccuracy * 100),
-    minAvgAccuracyPct: Math.round(minAvgAccuracy * 100),
+    eligible: qualifyingStreak >= requiredStreak,
+    qualifyingStreak: Math.min(qualifyingStreak, requiredStreak),
+    requiredStreak,
+    requiredAccuracyPct: Math.round(requiredAccuracy * 100),
+    totalTestsSoFar: recentTests.length,
   };
 }
 
@@ -82,7 +81,7 @@ export async function studentSummary(s: Student) {
   const levelDef = getLevelDef(s.level);
   const isMaster = s.level >= MASTER_LEVEL;
   const attemptToday = isMaster ? null : await levelExamAttemptToday(s.id, s.level);
-  const readiness = isMaster ? null : await computeReadiness(s.id, s.streak);
+  const readiness = isMaster ? null : await computeReadiness(s.id);
   const history = await studentHistory(s.id, 10);
   const wrongPairs = await computeCurrentWrongPairs(s.id);
 
@@ -103,6 +102,7 @@ export async function studentSummary(s: Student) {
       tables: s.customTables,
       questionCount: s.customCount,
       allowDuplicates: s.allowDuplicates,
+      problemOrder: s.problemOrder,
     },
     wrongCount: wrongPairs.length,
     levelExam: isMaster

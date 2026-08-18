@@ -7,7 +7,8 @@ import {
   dailyTestConfigFor,
   dailyTestConfigForCustom,
   timeLimitForDailyCount,
-  shuffle,
+  orderProblems,
+  type ProblemOrder,
 } from "@/lib/levels";
 import { computeCurrentWrongPairs } from "@/lib/retest";
 import { encryptExamToken } from "@/lib/examToken";
@@ -43,7 +44,10 @@ export async function POST(req: NextRequest) {
     randomPart = fullPool.slice(0, remaining);
   }
 
-  const problems = shuffle([...forced, ...randomPart]);
+  const order = (["random", "sequential", "reverse"] as const).includes(student.problemOrder as ProblemOrder)
+    ? (student.problemOrder as ProblemOrder)
+    : "random";
+  const problems = orderProblems([...forced, ...randomPart], order);
   const config = { questionCount: problems.length, timeLimitSec: timeLimitForDailyCount(problems.length) };
 
   const examToken = encryptExamToken({

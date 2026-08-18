@@ -12,10 +12,7 @@ type ReportData = Awaited<ReturnType<typeof studentSummary>>;
 type Readiness = NonNullable<Extract<ReportData["levelExam"], { readiness: unknown }>["readiness"]>;
 
 function ReadinessBlock({ r }: { r: Readiness }) {
-  const streakPct = Math.min(100, Math.round((r.streak / r.minStreakDays) * 100));
-  const accBase = r.recentCount > 0 ? r.avgAccuracyPct : 0;
-  const accPct = Math.min(100, Math.round((accBase / r.minAvgAccuracyPct) * 100));
-  const accLabel = r.recentCount < r.minRecentTests ? `기록 ${r.recentCount}/${r.minRecentTests}회` : `${r.avgAccuracyPct}%`;
+  const pct = Math.min(100, Math.round((r.qualifyingStreak / r.requiredStreak) * 100));
   return (
     <div className="card">
       <h2 className="mt0">다음 승급 시험 자격 기준</h2>
@@ -23,22 +20,13 @@ function ReadinessBlock({ r }: { r: Readiness }) {
       <div className="readiness">
         <div className="readiness-row">
           <div className="row-label">
-            <span>연속 출석</span>
-            <span className={r.streakOk ? "ok" : ""}>{r.streak}/{r.minStreakDays}일</span>
-          </div>
-          <div className="mini-track">
-            <div className="mini-fill" style={{ width: `${streakPct}%`, background: r.streakOk ? "var(--good)" : "var(--brand)" }} />
-          </div>
-        </div>
-        <div className="readiness-row">
-          <div className="row-label">
-            <span>최근 {r.minRecentTests}회 평균 정답률</span>
-            <span className={r.accuracyOk ? "ok" : ""}>
-              {accLabel} / {r.minAvgAccuracyPct}%
+            <span>연속 {r.requiredAccuracyPct}% 이상 달성</span>
+            <span className={r.eligible ? "ok" : ""}>
+              {r.qualifyingStreak}/{r.requiredStreak}회
             </span>
           </div>
           <div className="mini-track">
-            <div className="mini-fill" style={{ width: `${accPct}%`, background: r.accuracyOk ? "var(--good)" : "var(--brand)" }} />
+            <div className="mini-fill" style={{ width: `${pct}%`, background: r.eligible ? "var(--good)" : "var(--brand)" }} />
           </div>
         </div>
       </div>

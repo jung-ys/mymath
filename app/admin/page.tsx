@@ -33,43 +33,27 @@ interface LevelUpRow {
 }
 interface Readiness {
   eligible: boolean;
-  streakOk: boolean;
-  accuracyOk: boolean;
-  streak: number;
-  minStreakDays: number;
-  recentCount: number;
-  minRecentTests: number;
-  avgAccuracyPct: number;
-  minAvgAccuracyPct: number;
+  qualifyingStreak: number;
+  requiredStreak: number;
+  requiredAccuracyPct: number;
+  totalTestsSoFar: number;
 }
 
 function ReadinessBlock({ r }: { r: Readiness }) {
-  const streakPct = Math.min(100, Math.round((r.streak / r.minStreakDays) * 100));
-  const accBase = r.recentCount > 0 ? r.avgAccuracyPct : 0;
-  const accPct = Math.min(100, Math.round((accBase / r.minAvgAccuracyPct) * 100));
-  const accLabel = r.recentCount < r.minRecentTests ? `기록 ${r.recentCount}/${r.minRecentTests}회` : `${r.avgAccuracyPct}%`;
+  const pct = Math.min(100, Math.round((r.qualifyingStreak / r.requiredStreak) * 100));
   return (
     <>
       <div className={`callout ${r.eligible ? "go" : "wait"}`}>{r.eligible ? "승급 시험 자격 충족" : "승급 시험 자격 미충족"}</div>
       <div className="readiness">
         <div className="readiness-row">
           <div className="row-label">
-            <span>연속 출석</span>
-            <span className={r.streakOk ? "ok" : ""}>{r.streak}/{r.minStreakDays}일</span>
-          </div>
-          <div className="mini-track">
-            <div className="mini-fill" style={{ width: `${streakPct}%`, background: r.streakOk ? "var(--good)" : "var(--brand)" }} />
-          </div>
-        </div>
-        <div className="readiness-row">
-          <div className="row-label">
-            <span>최근 {r.minRecentTests}회 평균 정답률</span>
-            <span className={r.accuracyOk ? "ok" : ""}>
-              {accLabel} / {r.minAvgAccuracyPct}%
+            <span>연속 {r.requiredAccuracyPct}% 이상 달성</span>
+            <span className={r.eligible ? "ok" : ""}>
+              {r.qualifyingStreak}/{r.requiredStreak}회
             </span>
           </div>
           <div className="mini-track">
-            <div className="mini-fill" style={{ width: `${accPct}%`, background: r.accuracyOk ? "var(--good)" : "var(--brand)" }} />
+            <div className="mini-fill" style={{ width: `${pct}%`, background: r.eligible ? "var(--good)" : "var(--brand)" }} />
           </div>
         </div>
       </div>
@@ -539,6 +523,7 @@ function CustomConfigEditor({
   const [tables, setTables] = useState<Set<number>>(new Set(customConfig.tables));
   const [questionCount, setQuestionCount] = useState(customConfig.questionCount ? String(customConfig.questionCount) : "");
   const [allowDuplicates, setAllowDuplicates] = useState(customConfig.allowDuplicates);
+  const [problemOrder, setProblemOrder] = useState(customConfig.problemOrder || "random");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
@@ -553,7 +538,7 @@ function CustomConfigEditor({
     });
   }
 
-  async function save(tablesToSave: number[]) {
+  async function save(tablesToSave: number[], orderOverride?: string) {
     setSaving(true);
     setErr("");
     try {
@@ -563,6 +548,7 @@ function CustomConfigEditor({
           tables: tablesToSave,
           questionCount: tablesToSave.length && questionCount.trim() ? Number(questionCount) : null,
           allowDuplicates,
+          problemOrder: orderOverride ?? problemOrder,
         },
       });
       await onSaved();
@@ -638,19 +624,60 @@ function CustomConfigEditor({
         </div>
       </div>
 
+      <label style={{ marginTop: 14 }}>출제 순서</label>
+      <div className="tag-row">
+        {[
+          { value: "random", label: "🎲 랜덤" },
+          { value: "sequential", label: "➡️ 순서대로" },
+          { value: "reverse", label: "⬅️ 거꾸로" },
+        ].map((opt) => (
+          <label
+            key={opt.value}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: problemOrder === opt.value ? "var(--brand)" : "#fff",
+              color: problemOrder === opt.value ? "#fff" : "var(--ink)",
+              border: "1.5px solid var(--line)",
+              borderRadius: 8,
+              padding: "6px 12px",
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: "0.85rem",
+            }}
+          >
+            <input
+              type="radio"
+              name="problem-order"
+              value={opt.value}
+              checked={problemOrder === opt.value}
+              onChange={() => setProblemOrder(opt.value)}
+              style={{ display: "none" }}
+            />
+            {opt.label}
+          </label>
+        ))}
+      </div>
+      <p className="muted" style={{ fontSize: "0.78rem", marginTop: 6 }}>
+        순서대로/거꾸로를 선택하면 단이 작은 것(또는 큰 것)부터 곱수 순서대로 출제돼요. (예전에 틀린 문제가
+        강제로 섞여 들어가도 이 순서를 따릅니다)
+      </p>
+
       {err && <div className="error-box show">{err}</div>}
 
       <button className="btn small" disabled={saving} onClick={() => save(Array.from(tables))}>
         {saving ? "저장 중..." : "이 설정으로 저장"}
       </button>{" "}
-      {isCustom && (
+      {(isCustom || problemOrder !== "random") && (
         <button
           className="btn small ghost"
           disabled={saving}
           onClick={() => {
             setTables(new Set());
             setQuestionCount("");
-            save([]);
+            setProblemOrder("random");
+            save([], "random");
           }}
         >
           기본값(레벨 기준 자동)으로 되돌리기

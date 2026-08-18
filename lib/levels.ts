@@ -89,19 +89,21 @@ export const LEVELS: LevelDef[] = RAW_LEVELS.map((l) => ({ ...l, examConfig: com
 
 export const MASTER_LEVEL = LEVELS.length + 1; // 5 = 전 단계 마스터
 
-// 승급 시험 "자격 기준". 아래 두 조건을 모두 만족해야 시험 버튼이 열린다.
+// 승급 시험 "자격 기준": 오늘의 테스트를 최근 것부터 거슬러 올라가며 정답률이
+// requiredAccuracy(90%) 이상인 것이 연속으로 requiredStreak(10)회 이어져야 한다.
+// 중간에 한 번이라도 기준 미달이 있으면 그 지점에서 연속 기록이 끊긴다.
 export const READINESS_CONFIG = {
-  minStreakDays: 5,
-  minRecentTests: 5,
-  minAvgAccuracy: 0.9, // 90%
+  requiredStreak: 10,
+  requiredAccuracy: 0.9, // 90%
 };
 
 // 오늘의 테스트 문항 수는 지금까지 배운 단 수에 비례해서 늘어난다
 // (단마다 3문제, 최소 15문제 ~ 최대 30문제로 제한해 너무 길어지지 않게 한다).
+// 30문제 기준 제한시간이 3분(180초)이 되도록 문제당 6초로 잡는다.
 const DAILY_QUESTIONS_PER_TABLE = 3;
 const DAILY_QUESTIONS_MIN = 15;
 const DAILY_QUESTIONS_MAX = 30;
-const DAILY_SEC_PER_QUESTION = 12;
+const DAILY_SEC_PER_QUESTION = 6;
 
 export function dailyTestConfigFor(tables: number[]) {
   const questionCount = Math.min(DAILY_QUESTIONS_MAX, Math.max(DAILY_QUESTIONS_MIN, tables.length * DAILY_QUESTIONS_PER_TABLE));
@@ -126,6 +128,15 @@ export function tablesForStudent(level: number): number[] {
   const set = new Set<number>();
   upTo.forEach((l) => l.tables.forEach((t) => set.add(t)));
   return Array.from(set);
+}
+
+export type ProblemOrder = "random" | "sequential" | "reverse";
+
+// 출제 순서: 랜덤(기본) / 순서대로(단 오름차순 → 같은 단은 곱수 오름차순) / 거꾸로(그 반대).
+export function orderProblems(problems: Problem[], order: ProblemOrder): Problem[] {
+  if (order === "random") return shuffle(problems);
+  const sorted = problems.slice().sort((x, y) => (x.a - y.a) || (x.b - y.b));
+  return order === "reverse" ? sorted.reverse() : sorted;
 }
 
 export function shuffle<T>(arr: T[]): T[] {

@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   if (await levelExamAttemptToday(student.id, student.level)) {
     return NextResponse.json({ error: "오늘은 이미 이 단계 승급 시험에 응시했습니다. 내일 다시 도전해주세요." }, { status: 409 });
   }
-  const readiness = await computeReadiness(student.id, student.streak);
+  const readiness = await computeReadiness(student.id);
   if (!readiness.eligible) {
     return NextResponse.json(
       { error: "아직 승급 시험 자격 기준을 채우지 못했어요. 오늘의 테스트를 꾸준히 풀어주세요.", readiness },

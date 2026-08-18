@@ -433,3 +433,59 @@ footer.foot {
   font-weight: 700;
   box-shadow: 0 2px 6px rgba(60, 40, 130, 0.06);
 }
+
+/* 결과 화면 캐릭터 격려 메시지 */
+@keyframes mascot-bounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(-4deg); }
+}
+@keyframes mascot-clap {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.08) rotate(-6deg); }
+  75% { transform: scale(1.08) rotate(6deg); }
+}
+@keyframes mascot-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes bubble-pop {
+  0% { transform: translateY(10px) scale(0.9); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.mascot {
+  text-align: center;
+  padding: 8px 20px 24px;
+}
+.mascot-face {
+  display: inline-block;
+  font-size: 3.6rem;
+  animation: mascot-pop 0.35s ease-out, mascot-bounce 1.4s ease-in-out 0.35s infinite;
+}
+.mascot-strong .mascot-face {
+  font-size: 4.2rem;
+  animation: mascot-pop 0.35s ease-out, mascot-clap 0.7s ease-in-out 0.35s infinite;
+}
+.mascot-bubble {
+  display: block;
+  margin: 10px auto 0;
+  max-width: 460px;
+  background: var(--brand-light);
+  color: var(--brand-dark);
+  font-weight: 800;
+  padding: 12px 20px;
+  border-radius: 16px;
+  font-size: 1.02rem;
+  animation: bubble-pop 0.4s ease-out 0.15s both;
+}
+.mascot-strong .mascot-bubble {
+  background: linear-gradient(120deg, #fff3d6, #ffe1ec);
+  color: #b3492a;
+  font-size: 1.15rem;
+}
+.mascot-soft .mascot-bubble {
+  background: #f1edff;
+  color: var(--muted);
+  font-weight: 700;
+}

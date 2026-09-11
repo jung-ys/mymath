@@ -77,9 +77,16 @@ const RAW_LEVELS: Omit<LevelDef, "examConfig">[] = [
 const PASS_RATIO = 0.9; // 90% 이상 정답이어야 승급
 const GRACE_SEC = 15; // 시간 초과 판정 여유
 
+// 2단계부터는 승급 시험이 "누적"이 된다: 그 단계 자신의 단(段)은 근접 전 범위로 출제하고,
+// 추가로 그 아래 모든 단계에서 뽑은 문제를 CUMULATIVE_EXTRA_COUNT개 더 얹는다.
+// (1단계는 아래 단계가 없으므로 그대로 자기 범위만 출제한다.)
+export const CUMULATIVE_EXTRA_COUNT = 20;
+
 function computeExamConfig(levelDef: Omit<LevelDef, "examConfig">): ExamConfig {
   const quota = Math.min(levelDef.perTableQuota || 9, 9);
-  const questionCount = levelDef.tables.length * quota;
+  const ownCount = levelDef.tables.length * quota;
+  const extraCount = levelDef.level > 1 ? CUMULATIVE_EXTRA_COUNT : 0;
+  const questionCount = ownCount + extraCount;
   const timeLimitSec = Math.round(questionCount * levelDef.secPerQuestion);
   const passScore = Math.ceil(questionCount * PASS_RATIO);
   return { questionCount, timeLimitSec, passScore, graceSec: GRACE_SEC };
@@ -90,11 +97,11 @@ export const LEVELS: LevelDef[] = RAW_LEVELS.map((l) => ({ ...l, examConfig: com
 export const MASTER_LEVEL = LEVELS.length + 1; // 5 = 전 단계 마스터
 
 // 승급 시험 "자격 기준": 오늘의 테스트를 최근 것부터 거슬러 올라가며 정답률이
-// requiredAccuracy(90%) 이상인 것이 연속으로 requiredStreak(10)회 이어져야 한다.
+// requiredAccuracy(100%) 인 것이 연속으로 requiredStreak(10)회 이어져야 한다.
 // 중간에 한 번이라도 기준 미달이 있으면 그 지점에서 연속 기록이 끊긴다.
 export const READINESS_CONFIG = {
   requiredStreak: 10,
-  requiredAccuracy: 0.9, // 90%
+  requiredAccuracy: 1.0, // 100%
 };
 
 // 오늘의 테스트 문항 수는 지금까지 배운 단 수에 비례해서 늘어난다
@@ -189,6 +196,8 @@ export function timeLimitForDailyCount(count: number): number {
 
 // 승급 시험용 문제 생성: 단마다 hardMultipliers(자주 틀리는 곱셈)를 반드시 포함하고,
 // perTableQuota 만큼 채운다. quota가 9면 그 단의 ×1~9 전체를 빠짐없이 출제한다.
+// 2단계부터는 여기에 더해 그 아래 모든 단계의 단에서 CUMULATIVE_EXTRA_COUNT문제를 추가로
+// 무작위 출제해 이전에 배운 내용을 계속 누적해서 확인한다.
 export function generateLevelExamProblems(levelDef: LevelDef): Problem[] {
   const hard = levelDef.hardMultipliers || {};
   const quota = Math.min(levelDef.perTableQuota || 9, 9);
@@ -211,6 +220,16 @@ export function generateLevelExamProblems(levelDef: LevelDef): Problem[] {
     }
     chosen.forEach((m) => problems.push({ a: t, b: m, answer: t * m }));
   });
+
+  if (levelDef.level > 1) {
+    const lowerTables = LEVELS.filter((l) => l.level < levelDef.level).flatMap((l) => l.tables);
+    const pool: [number, number][] = [];
+    lowerTables.forEach((t) => {
+      for (let m = 1; m <= 9; m++) pool.push([t, m]);
+    });
+    const extra = shuffle(pool).slice(0, Math.min(CUMULATIVE_EXTRA_COUNT, pool.length));
+    extra.forEach(([a, b]) => problems.push({ a, b, answer: a * b }));
+  }
 
   return shuffle(problems);
 }

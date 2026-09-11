@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, ApiError, levelBadgeClass, fmtDate } from "@/lib/clientUtils";
+import { api, ApiError, levelBadgeClass, levelEmoji, fmtDate } from "@/lib/clientUtils";
 import { ACADEMY_NAME } from "@/lib/branding";
+import { rewardLabel } from "@/lib/rewards";
 import {
   CHEER_MESSAGES,
   LEVEL_PASS_MESSAGES,
@@ -432,7 +433,8 @@ function Dashboard({
           승급 시험 시작
         </button>
         <p className="muted" style={{ fontSize: "0.85rem" }}>
-          승급 시험을 통과하면 다음 단계로 올라가요. 선생님께 알려서 셀레나 달러와 간식 쿠폰을 받으세요! 🎉
+          승급 시험을 통과하면 다음 단계로 올라가요. 선생님께 알려서 <strong>{rewardLabel(levelExam.levelDef.level)}</strong>을
+          받으세요! 🎉
         </p>
       </div>
     );
@@ -461,6 +463,9 @@ function Dashboard({
     <>
       <div className="card flex-between">
         <div>
+          <span className="level-emoji" aria-hidden="true">
+            {levelEmoji(student.level, summary.masterLevel)}
+          </span>
           <span className={`badge ${badgeClass}`}>{student.levelTitle}</span>
           <div className="stat-row">
             <div className="stat">
@@ -565,7 +570,7 @@ function ResultView({ data, timedOut, onDone }: { data: SubmitResponse; timedOut
         {timedOut && <p className="muted">시간 초과로 자동 제출되었어요.</p>}
         {passed ? (
           <p>
-            선생님께 말씀드리고 <strong>셀레나 달러</strong>와 <strong>간식 쿠폰</strong>을 받아가세요! 🍬
+            선생님께 말씀드리고 <strong>{rewardLabel(data.result.level)}</strong>을 받아가세요! 🍬
           </p>
         ) : (
           <p className="muted">내일 다시 응시할 수 있어요. 오늘의 테스트로 연습해봐요!</p>

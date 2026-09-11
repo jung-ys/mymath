@@ -246,6 +246,13 @@ button {
 .badge.lv4 { background: var(--lv4); }
 .badge.lv5 { background: var(--lv5); }
 
+.level-emoji {
+  font-size: 1.6rem;
+  margin-right: 8px;
+  vertical-align: middle;
+  line-height: 1;
+}
+
 .stat-row {
   display: flex;
   gap: 16px;

@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
   res.cookies.set(STUDENT_COOKIE, makeStudentToken(student.id), {
     httpOnly: true,
     sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: STUDENT_COOKIE_MAX_AGE,
   });

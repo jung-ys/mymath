@@ -41,6 +41,14 @@ export function levelBadgeClass(level: number, masterLevel: number): string {
   return "lv" + level;
 }
 
+const LEVEL_EMOJIS = ["🌱", "🌿", "🌳", "🍀"];
+
+// 현재 단계를 눈에 띄게 보여주는 귀여운 이모지. 4단계를 마스터하면 왕관으로 바뀐다.
+export function levelEmoji(level: number, masterLevel: number): string {
+  if (level >= masterLevel) return "👑";
+  return LEVEL_EMOJIS[level - 1] ?? "🌱";
+}
+
 export function fmtDate(ts: string | number | Date | null | undefined): string {
   if (!ts) return "-";
   const d = new Date(ts);

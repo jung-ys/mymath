@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/apiAuth";
-import { hashSecret } from "@/lib/auth";
+import { hashSecret, encryptPin } from "@/lib/auth";
 import { publicStudent, todayStats } from "@/lib/studentView";
 import { LEVELS, MASTER_LEVEL } from "@/lib/levels";
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const student = await prisma.student.create({
-      data: { name, pinHash: hashSecret(pin), level: startLevel },
+      data: { name, pinHash: hashSecret(pin), pinEncrypted: encryptPin(pin), level: startLevel },
     });
     return NextResponse.json({ student: publicStudent(student) }, { status: 201 });
   } catch (err) {

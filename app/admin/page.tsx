@@ -28,6 +28,7 @@ interface LevelUpRow {
   studentName: string;
   level: number;
   levelTitle: string;
+  rewardLabel: string;
   awardedAt: string;
   rewardGiven: boolean;
 }
@@ -228,7 +229,17 @@ function AdminDashboard() {
   }
 
   async function onResetPin(id: string) {
-    const pin = prompt("새 비밀번호 (숫자 4~6자리)를 입력하세요.");
+    let currentPinNote = "기존 비밀번호를 확인하는 중...";
+    try {
+      const { pin: currentPin } = await api<{ pin: string | null }>(`/api/admin/students/${id}/pin`);
+      currentPinNote = currentPin
+        ? `현재 등록된 비밀번호는 "${currentPin}" 입니다.`
+        : "이 학생은 이 기능이 생기기 전에 등록되어 기존 비밀번호를 확인할 수 없어요. 아래에서 새로 설정하면 그다음부터는 확인할 수 있어요.";
+    } catch (ex) {
+      alert(ex instanceof ApiError ? ex.message : "기존 비밀번호를 불러오지 못했습니다.");
+      return;
+    }
+    const pin = prompt(`${currentPinNote}\n\n새 비밀번호(숫자 4~6자리)를 입력하세요. 그대로 두려면 취소를 누르세요.`);
     if (pin === null) return;
     try {
       await api(`/api/admin/students/${id}/reset-pin`, { method: "POST", body: { pin: pin.trim() } });
@@ -270,7 +281,7 @@ function AdminDashboard() {
             {l.title} ({l.range})
           </option>
         ))}
-        <option value={masterLevel}>마스터 (전체 완료)</option>
+        <option value={masterLevel}>4단계 (마스터단계)</option>
       </>
     );
   }
@@ -316,10 +327,15 @@ function AdminDashboard() {
                     {" "}
                     · {u.levelTitle} 통과 · {fmtDate(u.awardedAt)}
                   </span>
+                  {u.rewardLabel && (
+                    <div className="muted" style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--brand)" }}>
+                      🎁 {u.rewardLabel}
+                    </div>
+                  )}
                 </div>
                 <label className="reward-check">
                   <input type="checkbox" checked={u.rewardGiven} onChange={(e) => onToggleReward(u.id, e.target.checked)} />
-                  셀레나 달러/간식 지급 완료
+                  지급 완료
                 </label>
               </div>
             ))

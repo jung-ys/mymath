@@ -48,6 +48,36 @@ export function verifySecret(secret: string, stored: string | null | undefined):
   }
 }
 
+// ---- PIN 복원용 암호화 (관리자가 기존 PIN을 다시 확인할 수 있도록) ----
+// pinHash(scrypt)는 단방향이라 원래 숫자를 복원할 수 없다. 그래서 로그인 검증에는
+// 계속 pinHash를 쓰되, 별도로 SESSION_SECRET으로 대칭 암호화한 pinEncrypted를 함께
+// 저장해서 관리자 화면에서만 복호화해 보여준다(examToken.ts와 같은 AES-256-GCM 패턴).
+const PIN_KEY = crypto.createHash("sha256").update(SECRET).digest();
+
+export function encryptPin(pin: string): string {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", PIN_KEY, iv);
+  const enc = Buffer.concat([cipher.update(pin, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, enc]).toString("base64url");
+}
+
+export function decryptPin(token: string | null | undefined): string | null {
+  if (!token) return null;
+  try {
+    const buf = Buffer.from(token, "base64url");
+    const iv = buf.subarray(0, 12);
+    const tag = buf.subarray(12, 28);
+    const enc = buf.subarray(28);
+    const decipher = crypto.createDecipheriv("aes-256-gcm", PIN_KEY, iv);
+    decipher.setAuthTag(tag);
+    const dec = Buffer.concat([decipher.update(enc), decipher.final()]);
+    return dec.toString("utf8");
+  } catch {
+    return null;
+  }
+}
+
 // ---- 쿠키 ----
 
 export const STUDENT_COOKIE = "sid";

@@ -17,7 +17,7 @@ export function publicStudent(s: Student) {
     id: s.id,
     name: s.name,
     level: s.level,
-    levelTitle: s.level >= MASTER_LEVEL ? "마스터" : levelDef ? `${levelDef.title} (${levelDef.range})` : "-",
+    levelTitle: s.level >= MASTER_LEVEL ? "4단계 (마스터단계)" : levelDef ? `${levelDef.title} (${levelDef.range})` : "-",
     isMaster: s.level >= MASTER_LEVEL,
     streak: s.streak,
     lastDailyTestDate: s.lastDailyTestDate,

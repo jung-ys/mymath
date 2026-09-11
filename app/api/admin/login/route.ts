@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
   res.cookies.set(ADMIN_COOKIE, makeAdminToken(), {
     httpOnly: true,
     sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: ADMIN_COOKIE_MAX_AGE,
   });

@@ -80,27 +80,36 @@ export default function BoardPage() {
           <>
             <div className="card">
               <div className="columns">
-                {data.levels.map((l) => {
-                  const members = data.students.filter((s) => s.level === l.level);
+                {data.levels.map((l, i) => {
+                  // 마지막 단계(4단계) 칸에는 그 단계를 도전 중인 학생과 이미 마스터한
+                  // 학생을 함께 보여준다 (마스터를 별도 칸으로 분리하지 않고 합침).
+                  const isLastLevel = i === data.levels.length - 1;
+                  const members = data.students.filter(
+                    (s) => s.level === l.level || (isLastLevel && s.level >= data.masterLevel)
+                  );
                   return (
                     <div className="lvl-col" key={l.level}>
                       <h3>
                         <span className={`badge lv${l.level}`}>{l.title}</span>
                       </h3>
                       <p className="center muted" style={{ fontSize: "0.8rem" }}>
-                        {l.range}
+                        {isLastLevel ? `${l.range} (마스터 포함)` : l.range}
                       </p>
                       <div className="members">
                         {members.length ? (
-                          members.map((s) => (
-                            <div className="member-chip" key={s.id}>
-                              {s.name}
-                              <br />
-                              <span className="muted" style={{ fontWeight: 600, fontSize: "0.75rem" }}>
-                                🔥{s.streak}일
-                              </span>
-                            </div>
-                          ))
+                          members.map((s) => {
+                            const isMaster = s.level >= data.masterLevel;
+                            return (
+                              <div className="member-chip" key={s.id}>
+                                {isMaster ? "👑 " : ""}
+                                {s.name}
+                                <br />
+                                <span className="muted" style={{ fontWeight: 600, fontSize: "0.75rem" }}>
+                                  {isMaster ? "마스터" : `🔥${s.streak}일`}
+                                </span>
+                              </div>
+                            );
+                          })
                         ) : (
                           <p className="center muted" style={{ fontSize: "0.8rem" }}>
                             -
@@ -110,29 +119,6 @@ export default function BoardPage() {
                     </div>
                   );
                 })}
-                <div className="lvl-col">
-                  <h3>
-                    <span className="badge lv5">마스터</span>
-                  </h3>
-                  <p className="center muted" style={{ fontSize: "0.8rem" }}>
-                    2~19단 전체
-                  </p>
-                  <div className="members">
-                    {data.students.filter((s) => s.level >= data.masterLevel).length ? (
-                      data.students
-                        .filter((s) => s.level >= data.masterLevel)
-                        .map((s) => (
-                          <div className="member-chip" key={s.id}>
-                            🌟 {s.name}
-                          </div>
-                        ))
-                    ) : (
-                      <p className="center muted" style={{ fontSize: "0.8rem" }}>
-                        -
-                      </p>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
 

@@ -445,6 +445,7 @@ function AdminDashboard() {
           <table>
             <thead>
               <tr>
+                <th>번호</th>
                 <th>이름</th>
                 <th>단계</th>
                 <th>연속출석</th>
@@ -453,8 +454,9 @@ function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {students.map((s) => (
+              {students.map((s, i) => (
                 <tr key={s.id}>
+                  <td className="muted">{i + 1}</td>
                   <td>
                     <button
                       className="link"

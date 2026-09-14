@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/apiAuth";
 import { hashSecret, encryptPin } from "@/lib/auth";
-import { publicStudent, todayStats } from "@/lib/studentView";
+import { publicStudent, todayStats, sortStudentsByGrade } from "@/lib/studentView";
 import { LEVELS, MASTER_LEVEL } from "@/lib/levels";
 
 export async function GET(req: NextRequest) {
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       return { ...publicStudent(s), todayDone: !!dailyDone };
     })
   );
-  return NextResponse.json({ students: list, levels: LEVELS, masterLevel: MASTER_LEVEL });
+  return NextResponse.json({ students: sortStudentsByGrade(list), levels: LEVELS, masterLevel: MASTER_LEVEL });
 }
 
 export async function POST(req: NextRequest) {

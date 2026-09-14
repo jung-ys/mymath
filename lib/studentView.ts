@@ -11,6 +11,29 @@ import {
 } from "./levels";
 import { computeCurrentWrongPairs } from "./retest";
 
+// 학년 문자열("3학년", "중1" 등)을 저학년→고학년 순으로 정렬할 수 있는 숫자로 변환한다.
+// 초등 1~6학년은 1~6, 중1~3은 7~9, 고1~3은 10~12로 매핑. 형식을 알 수 없거나
+// 학년 정보가 없으면 맨 뒤로 보낸다.
+function gradeRank(grade: string | null): number {
+  if (!grade) return 999;
+  const elem = grade.match(/(\d+)\s*학년/);
+  if (elem) return parseInt(elem[1], 10);
+  const middle = grade.match(/중\s*(\d+)/);
+  if (middle) return 6 + parseInt(middle[1], 10);
+  const high = grade.match(/고\s*(\d+)/);
+  if (high) return 9 + parseInt(high[1], 10);
+  return 998; // 인식할 수 없는 형식은 정보 없음(999) 바로 앞에 둔다
+}
+
+// 학생 목록을 저학년→고학년 순으로 정렬한다 (같은 학년이면 이름 가나다순).
+export function sortStudentsByGrade<T extends { grade: string | null; name: string }>(list: T[]): T[] {
+  return list.slice().sort((a, b) => {
+    const diff = gradeRank(a.grade) - gradeRank(b.grade);
+    if (diff !== 0) return diff;
+    return a.name.localeCompare(b.name, "ko");
+  });
+}
+
 export function publicStudent(s: Student) {
   const levelDef = getLevelDef(s.level);
   return {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { api, ApiError, levelBadgeClass, fmtDate, fmtDateOnly } from "@/lib/clientUtils";
 import type { studentSummary } from "@/lib/studentView";
 import { ACADEMY_NAME } from "@/lib/branding";
@@ -476,39 +476,64 @@ function AdminDashboard() {
             </thead>
             <tbody>
               {students.map((s, i) => (
-                <tr key={s.id}>
-                  <td className="muted">{i + 1}</td>
-                  <td>
-                    <button
-                      className="link"
-                      style={{ color: "var(--brand)", fontWeight: 700, textDecoration: "underline" }}
-                      onClick={() => toggleDetail(s.id)}
-                    >
-                      {s.name}
-                    </button>
-                    {(s.school || s.grade) && (
-                      <div className="muted" style={{ fontSize: "0.75rem" }}>
-                        {[s.school, s.grade].filter(Boolean).join(" · ")}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`badge ${levelBadgeClass(s.level, masterLevel)}`}>{s.levelTitle}</span>
-                  </td>
-                  <td>{s.streak}일</td>
-                  <td>{s.todayDone ? "✅" : "—"}</td>
-                  <td>
-                    <button className="btn small ghost" onClick={() => onResetPin(s.id)}>
-                      PIN 재설정
-                    </button>{" "}
-                    <button className="btn small ghost" onClick={() => onResetProgress(s.id, s.name)}>
-                      진행 초기화
-                    </button>{" "}
-                    <button className="btn small ghost" onClick={() => onDeleteStudent(s.id, s.name)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
+                <Fragment key={s.id}>
+                  <tr>
+                    <td className="muted">{i + 1}</td>
+                    <td>
+                      <button
+                        className="link"
+                        style={{ color: "var(--brand)", fontWeight: 700, textDecoration: "underline" }}
+                        onClick={() => toggleDetail(s.id)}
+                      >
+                        {s.name}
+                      </button>
+                      {(s.school || s.grade) && (
+                        <div className="muted" style={{ fontSize: "0.75rem" }}>
+                          {[s.school, s.grade].filter(Boolean).join(" · ")}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge ${levelBadgeClass(s.level, masterLevel)}`}>{s.levelTitle}</span>
+                    </td>
+                    <td>{s.streak}일</td>
+                    <td>{s.todayDone ? "✅" : "—"}</td>
+                    <td>
+                      <button className="btn small ghost" onClick={() => onResetPin(s.id)}>
+                        PIN 재설정
+                      </button>{" "}
+                      <button className="btn small ghost" onClick={() => onResetProgress(s.id, s.name)}>
+                        진행 초기화
+                      </button>{" "}
+                      <button className="btn small ghost" onClick={() => onDeleteStudent(s.id, s.name)}>
+                        삭제
+                      </button>
+                    </td>
+                  </tr>
+                  {/* 이름을 누르면 그 학생 바로 아래에 상세 내용이 펼쳐진다 (목록 끝까지 안 내려가도 됨) */}
+                  {selectedId === s.id && (
+                    <tr>
+                      <td colSpan={6} style={{ background: "var(--brand-light)", padding: 16 }}>
+                        {detailErr && <p className="error-box show">{detailErr}</p>}
+                        {!detail && !detailErr && <p className="muted">불러오는 중...</p>}
+                        {detail && (
+                          <div className="card" style={{ margin: 0 }}>
+                            <StudentDetail
+                              detail={detail}
+                              masterLevel={masterLevel}
+                              levelOptions={levelOptions}
+                              onApplyLevel={(level) => onApplyLevel(s.id, level)}
+                              onConfigSaved={async () => {
+                                await load();
+                                await fetchDetail(s.id);
+                              }}
+                            />
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -516,25 +541,6 @@ function AdminDashboard() {
           <p className="muted">등록된 학생이 없어요.</p>
         )}
       </div>
-
-      {selectedId && (
-        <div className="card">
-          {detailErr && <p className="error-box show">{detailErr}</p>}
-          {!detail && !detailErr && <p className="muted">불러오는 중...</p>}
-          {detail && (
-            <StudentDetail
-              detail={detail}
-              masterLevel={masterLevel}
-              levelOptions={levelOptions}
-              onApplyLevel={(level) => onApplyLevel(selectedId, level)}
-              onConfigSaved={async () => {
-                await load();
-                await fetchDetail(selectedId);
-              }}
-            />
-          )}
-        </div>
-      )}
     </>
   );
 }

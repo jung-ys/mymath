@@ -8,6 +8,60 @@ import { ACADEMY_NAME } from "@/lib/branding";
 
 type StudentDetailData = Awaited<ReturnType<typeof studentSummary>>;
 
+// 주변 학교 프리셋 — 매번 타이핑하지 않도록 선택지로 제공하고, 목록에 없으면 "직접 입력"으로 처리.
+const SCHOOL_OPTIONS = ["삼양초", "도련초", "동중", "오름중"];
+const GRADE_OPTIONS = ["1학년", "2학년", "3학년", "4학년", "5학년", "6학년"];
+const CUSTOM_OPTION = "__custom__";
+
+// 프리셋 목록에서 고르거나, 목록에 없으면 "직접 입력"을 선택해 텍스트로 입력할 수 있는 select.
+// 학교/학년 둘 다 같은 방식으로 쓴다.
+function PresetSelect({
+  id,
+  presets,
+  value,
+  onChange,
+  placeholder,
+}: {
+  id: string;
+  presets: string[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  const isCustom = value !== "" && !presets.includes(value);
+  const selectValue = value === "" ? "" : isCustom ? CUSTOM_OPTION : value;
+
+  return (
+    <>
+      <select
+        id={id}
+        value={selectValue}
+        onChange={(e) => {
+          const v = e.target.value;
+          onChange(v === CUSTOM_OPTION ? "" : v);
+        }}
+      >
+        <option value="">선택 안 함</option>
+        {presets.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+        <option value={CUSTOM_OPTION}>직접 입력...</option>
+      </select>
+      {selectValue === CUSTOM_OPTION && (
+        <input
+          type="text"
+          style={{ marginTop: 8 }}
+          placeholder={placeholder}
+          value={isCustom ? value : ""}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+    </>
+  );
+}
+
 interface LevelDef {
   level: number;
   title: string;
@@ -334,11 +388,11 @@ function AdminDashboard() {
           <div className="grid-2">
             <div>
               <label htmlFor="new-school">학교 (선택)</label>
-              <input type="text" id="new-school" placeholder="예: 삼양초등학교" value={newSchool} onChange={(e) => setNewSchool(e.target.value)} />
+              <PresetSelect id="new-school" presets={SCHOOL_OPTIONS} value={newSchool} onChange={setNewSchool} placeholder="학교 이름 입력" />
             </div>
             <div>
               <label htmlFor="new-grade">학년 (선택)</label>
-              <input type="text" id="new-grade" placeholder="예: 3학년" value={newGrade} onChange={(e) => setNewGrade(e.target.value)} />
+              <PresetSelect id="new-grade" presets={GRADE_OPTIONS} value={newGrade} onChange={setNewGrade} placeholder="학년 입력" />
             </div>
           </div>
           <label htmlFor="new-level">시작 단계</label>
@@ -637,11 +691,11 @@ function SchoolGradeEditor({
     <div className="grid-2" style={{ marginBottom: 10 }}>
       <div>
         <label htmlFor="edit-school">학교</label>
-        <input type="text" id="edit-school" value={schoolVal} onChange={(e) => setSchoolVal(e.target.value)} />
+        <PresetSelect id="edit-school" presets={SCHOOL_OPTIONS} value={schoolVal} onChange={setSchoolVal} placeholder="학교 이름 입력" />
       </div>
       <div>
         <label htmlFor="edit-grade">학년</label>
-        <input type="text" id="edit-grade" value={gradeVal} onChange={(e) => setGradeVal(e.target.value)} />
+        <PresetSelect id="edit-grade" presets={GRADE_OPTIONS} value={gradeVal} onChange={setGradeVal} placeholder="학년 입력" />
       </div>
       <div style={{ gridColumn: "1 / -1" }}>
         <button className="btn small" disabled={saving} onClick={save}>

@@ -26,9 +26,11 @@ export async function POST(req: NextRequest) {
 
   const hasCustom = student.customTables.length > 0;
   const tables = hasCustom ? student.customTables : tablesForStudent(student.level);
-  // hasCustom: 관리자가 지정한 단(段)에 배수 1~20 전체를 적용. 아니면 학생이 도전 중인
-  // 단계까지의 모든 사분면(단×배수구간)을 합친 조합을 쓴다.
-  const pairs = hasCustom ? pairsForTables(student.customTables) : cumulativePairsForLevel(student.level);
+  // hasCustom: 관리자가 지정한 단(段)에, 관리자가 지정한 배수 범위(기본 1~20 전체)를 적용.
+  // 아니면 학생이 도전 중인 단계까지의 모든 사분면(단×배수구간)을 합친 조합을 쓴다.
+  const pairs = hasCustom
+    ? pairsForTables(student.customTables, student.customMultMin, student.customMultMax)
+    : cumulativePairsForLevel(student.level);
   const baseConfig = hasCustom ? dailyTestConfigForCustom(tables, student.customCount) : dailyTestConfigFor(tables);
 
   // 지금까지 틀린 채로 남아있는 문제는(어제 이전 오답 포함) 반드시 오늘의 테스트에 포함시킨다.

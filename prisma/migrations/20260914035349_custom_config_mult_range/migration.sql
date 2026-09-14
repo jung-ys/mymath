@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Student" ADD COLUMN     "customMultMax" INTEGER NOT NULL DEFAULT 20,
+ADD COLUMN     "customMultMin" INTEGER NOT NULL DEFAULT 1;

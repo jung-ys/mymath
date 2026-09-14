@@ -531,6 +531,19 @@ function StudentDetail({
 
 const ALL_TABLES = Array.from({ length: 18 }, (_, i) => i + 2); // 2~19
 
+// 커스텀 설정에서 선택한 단(段)에 적용할 배수 범위. 단마다 따로 지정하지 않고, 선택한
+// 단 전체에 공통으로 적용되는 3가지 프리셋만 제공해 화면을 단순하게 유지한다.
+const MULT_RANGE_OPTIONS: { value: string; label: string; range: [number, number] }[] = [
+  { value: "1-10", label: "×1~10배", range: [1, 10] },
+  { value: "11-20", label: "×11~20배", range: [11, 20] },
+  { value: "1-20", label: "전체(×1~20배)", range: [1, 20] },
+];
+
+function multRangeKeyFor(min: number, max: number): string {
+  const found = MULT_RANGE_OPTIONS.find((o) => o.range[0] === min && o.range[1] === max);
+  return found ? found.value : "1-20";
+}
+
 function CustomConfigEditor({
   studentId,
   customConfig,
@@ -542,6 +555,7 @@ function CustomConfigEditor({
 }) {
   const [tables, setTables] = useState<Set<number>>(new Set(customConfig.tables));
   const [questionCount, setQuestionCount] = useState(customConfig.questionCount ? String(customConfig.questionCount) : "");
+  const [multRange, setMultRange] = useState(multRangeKeyFor(customConfig.multMin, customConfig.multMax));
   const [allowDuplicates, setAllowDuplicates] = useState(customConfig.allowDuplicates);
   const [problemOrder, setProblemOrder] = useState(customConfig.problemOrder || "random");
   const [saving, setSaving] = useState(false);
@@ -558,17 +572,20 @@ function CustomConfigEditor({
     });
   }
 
-  async function save(tablesToSave: number[], orderOverride?: string) {
+  async function save(tablesToSave: number[], overrides?: { order?: string; multRange?: string }) {
     setSaving(true);
     setErr("");
+    const [multMin, multMax] = MULT_RANGE_OPTIONS.find((o) => o.value === (overrides?.multRange ?? multRange))!.range;
     try {
       await api(`/api/admin/students/${studentId}/custom-config`, {
         method: "POST",
         body: {
           tables: tablesToSave,
           questionCount: tablesToSave.length && questionCount.trim() ? Number(questionCount) : null,
+          multMin,
+          multMax,
           allowDuplicates,
-          problemOrder: orderOverride ?? problemOrder,
+          problemOrder: overrides?.order ?? problemOrder,
         },
       });
       await onSaved();
@@ -612,6 +629,41 @@ function CustomConfigEditor({
           </label>
         ))}
       </div>
+
+      <label style={{ marginTop: 14 }}>배수 범위 (선택한 단 전체에 공통 적용)</label>
+      <div className="tag-row">
+        {MULT_RANGE_OPTIONS.map((opt) => (
+          <label
+            key={opt.value}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: multRange === opt.value ? "var(--brand)" : "#fff",
+              color: multRange === opt.value ? "#fff" : "var(--ink)",
+              border: "1.5px solid var(--line)",
+              borderRadius: 8,
+              padding: "6px 12px",
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: "0.85rem",
+            }}
+          >
+            <input
+              type="radio"
+              name="mult-range"
+              value={opt.value}
+              checked={multRange === opt.value}
+              onChange={() => setMultRange(opt.value)}
+              style={{ display: "none" }}
+            />
+            {opt.label}
+          </label>
+        ))}
+      </div>
+      <p className="muted" style={{ fontSize: "0.78rem", marginTop: 6 }}>
+        예: 2, 3단을 체크하고 ×1~10배를 고르면 2×1~2×10, 3×1~3×10 범위에서만 출제돼요.
+      </p>
 
       <div className="grid-2" style={{ marginTop: 14 }}>
         <div>
@@ -689,7 +741,7 @@ function CustomConfigEditor({
       <button className="btn small" disabled={saving} onClick={() => save(Array.from(tables))}>
         {saving ? "저장 중..." : "이 설정으로 저장"}
       </button>{" "}
-      {(isCustom || problemOrder !== "random") && (
+      {(isCustom || problemOrder !== "random" || multRange !== "1-20") && (
         <button
           className="btn small ghost"
           disabled={saving}
@@ -697,7 +749,8 @@ function CustomConfigEditor({
             setTables(new Set());
             setQuestionCount("");
             setProblemOrder("random");
-            save([], "random");
+            setMultRange("1-20");
+            save([], { order: "random", multRange: "1-20" });
           }}
         >
           기본값(레벨 기준 자동)으로 되돌리기

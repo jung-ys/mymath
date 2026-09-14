@@ -28,15 +28,24 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const allowDuplicates = !!body.allowDuplicates;
   const problemOrder = VALID_ORDERS.includes(body.problemOrder) ? body.problemOrder : "random";
 
+  // 배수 범위(1~20) — 잘못되거나 없으면 전체(1~20)로 되돌린다.
+  let multMin = Number(body.multMin);
+  let multMax = Number(body.multMax);
+  if (!Number.isInteger(multMin) || multMin < 1 || multMin > 20) multMin = 1;
+  if (!Number.isInteger(multMax) || multMax < 1 || multMax > 20) multMax = 20;
+  if (multMin > multMax) [multMin, multMax] = [multMax, multMin];
+
   try {
     const student = await prisma.student.update({
       where: { id },
-      data: { customTables: tables, customCount: questionCount, allowDuplicates, problemOrder },
+      data: { customTables: tables, customCount: questionCount, customMultMin: multMin, customMultMax: multMax, allowDuplicates, problemOrder },
     });
     return NextResponse.json({
       student: publicStudent(student),
       customTables: tables,
       customCount: questionCount,
+      multMin,
+      multMax,
       allowDuplicates,
       problemOrder,
     });

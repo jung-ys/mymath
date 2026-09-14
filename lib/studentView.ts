@@ -101,6 +101,8 @@ export async function studentSummary(s: Student) {
     customConfig: {
       tables: s.customTables,
       questionCount: s.customCount,
+      multMin: s.customMultMin,
+      multMax: s.customMultMax,
       allowDuplicates: s.allowDuplicates,
       problemOrder: s.problemOrder,
     },

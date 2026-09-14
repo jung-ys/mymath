@@ -29,6 +29,8 @@ model Student {
   // customTables가 비어있으면(기본) 단계(level) 기준 자동 범위를 그대로 쓴다.
   customTables    Int[]    @default([]) // 관리자가 체크한 단(段) 목록, 예: [2,3,4]
   customCount     Int? // 관리자가 지정한 문항 수. null이면 단 수에 맞춰 자동 산정
+  customMultMin   Int      @default(1) // 커스텀 설정 시 적용할 배수 범위 하한 (1~20)
+  customMultMax   Int      @default(20) // 커스텀 설정 시 적용할 배수 범위 상한 (1~20)
   allowDuplicates Boolean  @default(false) // 체크 시 같은 문제가 여러 번 나올 수 있음
   problemOrder    String   @default("random") // "random" | "sequential" | "reverse"
 

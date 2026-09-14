@@ -16,6 +16,8 @@ export function publicStudent(s: Student) {
   return {
     id: s.id,
     name: s.name,
+    school: s.school,
+    grade: s.grade,
     level: s.level,
     levelTitle: s.level >= MASTER_LEVEL ? "마스터 👑" : levelDef ? `${levelDef.title} (${levelDef.range})` : "-",
     isMaster: s.level >= MASTER_LEVEL,

@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const name = String(body.name || "").trim();
+  const school = String(body.school || "").trim().slice(0, 50) || null;
+  const grade = String(body.grade || "").trim().slice(0, 20) || null;
   const pin = String(body.pin || "").trim();
   const startLevel = Number(body.startLevel) || 1;
 
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const student = await prisma.student.create({
-      data: { name, pinHash: hashSecret(pin), pinEncrypted: encryptPin(pin), level: startLevel },
+      data: { name, school, grade, pinHash: hashSecret(pin), pinEncrypted: encryptPin(pin), level: startLevel },
     });
     return NextResponse.json({ student: publicStudent(student) }, { status: 201 });
   } catch (err) {

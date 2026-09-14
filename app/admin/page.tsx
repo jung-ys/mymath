@@ -16,6 +16,8 @@ interface LevelDef {
 interface StudentRow {
   id: string;
   name: string;
+  school: string | null;
+  grade: string | null;
   level: number;
   levelTitle: string;
   isMaster: boolean;
@@ -158,6 +160,8 @@ function AdminDashboard() {
   const [detailErr, setDetailErr] = useState("");
 
   const [newName, setNewName] = useState("");
+  const [newSchool, setNewSchool] = useState("");
+  const [newGrade, setNewGrade] = useState("");
   const [newPin, setNewPin] = useState("");
   const [newLevel, setNewLevel] = useState(1);
   const [addErr, setAddErr] = useState("");
@@ -209,8 +213,19 @@ function AdminDashboard() {
     e.preventDefault();
     setAddErr("");
     try {
-      await api("/api/admin/students", { method: "POST", body: { name: newName.trim(), pin: newPin.trim(), startLevel: newLevel } });
+      await api("/api/admin/students", {
+        method: "POST",
+        body: {
+          name: newName.trim(),
+          school: newSchool.trim(),
+          grade: newGrade.trim(),
+          pin: newPin.trim(),
+          startLevel: newLevel,
+        },
+      });
       setNewName("");
+      setNewSchool("");
+      setNewGrade("");
       setNewPin("");
       setNewLevel(1);
       await load();
@@ -263,6 +278,22 @@ function AdminDashboard() {
     }
   }
 
+  async function onResetProgress(id: string, name: string) {
+    if (
+      !confirm(
+        `'${name}' 학생의 진행 상황을 초기화할까요?\n\n1단계로 되돌아가고, 연속기록·오늘의테스트·승급시험·오답·레벨업 기록이 모두 삭제됩니다.\n(이름과 비밀번호는 그대로 유지돼요.) 되돌릴 수 없어요.`
+      )
+    )
+      return;
+    try {
+      await api(`/api/admin/students/${id}/reset-progress`, { method: "POST" });
+      await load();
+      if (selectedId === id) await fetchDetail(id);
+    } catch (ex) {
+      alert(ex instanceof ApiError ? ex.message : "실패했습니다.");
+    }
+  }
+
   async function onApplyLevel(id: string, level: number) {
     try {
       await api(`/api/admin/students/${id}/adjust-level`, { method: "POST", body: { level } });
@@ -298,6 +329,16 @@ function AdminDashboard() {
             <div>
               <label htmlFor="new-pin">비밀번호 (숫자 4~6자리)</label>
               <input type="text" id="new-pin" inputMode="numeric" required value={newPin} onChange={(e) => setNewPin(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid-2">
+            <div>
+              <label htmlFor="new-school">학교 (선택)</label>
+              <input type="text" id="new-school" placeholder="예: 삼양초등학교" value={newSchool} onChange={(e) => setNewSchool(e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="new-grade">학년 (선택)</label>
+              <input type="text" id="new-grade" placeholder="예: 3학년" value={newGrade} onChange={(e) => setNewGrade(e.target.value)} />
             </div>
           </div>
           <label htmlFor="new-level">시작 단계</label>
@@ -368,6 +409,11 @@ function AdminDashboard() {
                     >
                       {s.name}
                     </button>
+                    {(s.school || s.grade) && (
+                      <div className="muted" style={{ fontSize: "0.75rem" }}>
+                        {[s.school, s.grade].filter(Boolean).join(" · ")}
+                      </div>
+                    )}
                   </td>
                   <td>
                     <span className={`badge ${levelBadgeClass(s.level, masterLevel)}`}>{s.levelTitle}</span>
@@ -377,6 +423,9 @@ function AdminDashboard() {
                   <td>
                     <button className="btn small ghost" onClick={() => onResetPin(s.id)}>
                       PIN 재설정
+                    </button>{" "}
+                    <button className="btn small ghost" onClick={() => onResetProgress(s.id, s.name)}>
+                      진행 초기화
                     </button>{" "}
                     <button className="btn small ghost" onClick={() => onDeleteStudent(s.id, s.name)}>
                       삭제
@@ -456,6 +505,8 @@ function StudentDetail({
         {wrongCount > 0 ? " 남음 (학생 화면에서 '오답 다시 풀기'로 연습 가능)" : " — 깨끗해요!"}
       </p>
 
+      <SchoolGradeEditor studentId={student.id} school={student.school} grade={student.grade} onSaved={onConfigSaved} />
+
       {!student.isMaster && levelExam?.readiness && <ReadinessBlock r={levelExam.readiness} />}
 
       <CustomConfigEditor studentId={student.id} customConfig={customConfig} onSaved={onConfigSaved} />
@@ -526,6 +577,82 @@ function StudentDetail({
         </div>
       </div>
     </>
+  );
+}
+
+function SchoolGradeEditor({
+  studentId,
+  school,
+  grade,
+  onSaved,
+}: {
+  studentId: string;
+  school: string | null;
+  grade: string | null;
+  onSaved: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [schoolVal, setSchoolVal] = useState(school || "");
+  const [gradeVal, setGradeVal] = useState(grade || "");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function save() {
+    setSaving(true);
+    setErr("");
+    try {
+      await api(`/api/admin/students/${studentId}/info`, {
+        method: "POST",
+        body: { school: schoolVal.trim(), grade: gradeVal.trim() },
+      });
+      await onSaved();
+      setEditing(false);
+    } catch (ex) {
+      setErr(ex instanceof ApiError ? ex.message : "저장에 실패했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <p className="muted" style={{ fontSize: "0.85rem" }}>
+        {school || grade ? [school, grade].filter(Boolean).join(" · ") : "학교/학년 정보 없음"}{" "}
+        <button
+          className="link"
+          onClick={() => {
+            setSchoolVal(school || "");
+            setGradeVal(grade || "");
+            setErr("");
+            setEditing(true);
+          }}
+        >
+          수정
+        </button>
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid-2" style={{ marginBottom: 10 }}>
+      <div>
+        <label htmlFor="edit-school">학교</label>
+        <input type="text" id="edit-school" value={schoolVal} onChange={(e) => setSchoolVal(e.target.value)} />
+      </div>
+      <div>
+        <label htmlFor="edit-grade">학년</label>
+        <input type="text" id="edit-grade" value={gradeVal} onChange={(e) => setGradeVal(e.target.value)} />
+      </div>
+      <div style={{ gridColumn: "1 / -1" }}>
+        <button className="btn small" disabled={saving} onClick={save}>
+          {saving ? "저장 중..." : "저장"}
+        </button>{" "}
+        <button className="btn small ghost" disabled={saving} onClick={() => setEditing(false)}>
+          취소
+        </button>
+        {err && <div className="error-box show">{err}</div>}
+      </div>
+    </div>
   );
 }
 

@@ -249,6 +249,9 @@ function ReportContent() {
       <div className="hero" style={{ padding: "20px 0" }}>
         <p className="academy-name">{ACADEMY_NAME}</p>
         <h1>{student.name} 학생 학습 리포트</h1>
+        {(student.school || student.grade) && (
+          <p className="muted">{[student.school, student.grade].filter(Boolean).join(" · ")}</p>
+        )}
         <p className="muted">발행일: {today}</p>
       </div>
 

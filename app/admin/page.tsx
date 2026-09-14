@@ -281,7 +281,6 @@ function AdminDashboard() {
             {l.title} ({l.range})
           </option>
         ))}
-        <option value={masterLevel}>마스터 👑 (전 단계 완료)</option>
       </>
     );
   }

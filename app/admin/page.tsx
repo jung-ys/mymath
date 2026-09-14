@@ -10,7 +10,7 @@ type StudentDetailData = Awaited<ReturnType<typeof studentSummary>>;
 
 // 주변 학교 프리셋 — 매번 타이핑하지 않도록 선택지로 제공하고, 목록에 없으면 "직접 입력"으로 처리.
 const SCHOOL_OPTIONS = ["삼양초", "도련초", "동중", "오름중"];
-const GRADE_OPTIONS = ["1학년", "2학년", "3학년", "4학년", "5학년", "6학년"];
+const GRADE_OPTIONS = ["1학년", "2학년", "3학년", "4학년", "5학년", "6학년", "중1", "중2", "중3"];
 const CUSTOM_OPTION = "__custom__";
 
 // 프리셋 목록에서 고르거나, 목록에 없으면 "직접 입력"을 선택해 텍스트로 입력할 수 있는 select.

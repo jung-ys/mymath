@@ -11,18 +11,20 @@ import {
 } from "./levels";
 import { computeCurrentWrongPairs } from "./retest";
 
-// 학년 문자열("3학년", "중1" 등)을 저학년→고학년 순으로 정렬할 수 있는 숫자로 변환한다.
-// 초등 1~6학년은 1~6, 중1~3은 7~9, 고1~3은 10~12로 매핑. 형식을 알 수 없거나
-// 학년 정보가 없으면 맨 뒤로 보낸다.
+// 학년 문자열("3학년", "중1", "중학교 1학년" 등)을 저학년→고학년 순으로 정렬할 수 있는
+// 숫자로 변환한다. 초등 1~6학년은 1~6, 중1~3은 7~9, 고1~3은 10~12로 매핑.
+// "중학교 1학년"처럼 숫자 앞에 "N학년"이 아닌 다른 말이 끼어있는 경우도 인식하도록,
+// 먼저 "중"/"고" 포함 여부로 학교급을 정하고 그다음 문자열 안의 숫자를 찾는다
+// (숫자만 보고 먼저 판단하면 "중학교 1학년"의 "1"을 초등 1학년으로 착각하게 된다).
+// 형식을 알 수 없거나 학년 정보가 없으면 맨 뒤로 보낸다.
 function gradeRank(grade: string | null): number {
   if (!grade) return 999;
-  const elem = grade.match(/(\d+)\s*학년/);
-  if (elem) return parseInt(elem[1], 10);
-  const middle = grade.match(/중\s*(\d+)/);
-  if (middle) return 6 + parseInt(middle[1], 10);
-  const high = grade.match(/고\s*(\d+)/);
-  if (high) return 9 + parseInt(high[1], 10);
-  return 998; // 인식할 수 없는 형식은 정보 없음(999) 바로 앞에 둔다
+  const digitMatch = grade.match(/(\d+)/);
+  if (!digitMatch) return 998;
+  const num = parseInt(digitMatch[1], 10);
+  if (grade.includes("고")) return 9 + num; // 고등학교
+  if (grade.includes("중")) return 6 + num; // 중학교
+  return num; // 그 외(초등, 또는 그냥 숫자만)는 초등 학년으로 취급
 }
 
 // 학생 목록을 저학년→고학년 순으로 정렬한다 (같은 학년이면 이름 가나다순).

@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, levelBadgeClass, levelEmoji, fmtDate } from "@/lib/clientUtils";
 import { ACADEMY_NAME } from "@/lib/branding";
 import { rewardLabel } from "@/lib/rewards";
 import { FINAL_LEVEL } from "@/lib/levels";
+import { playStartChime, playTick, playExplosion, playPassFanfare, playFailTone } from "@/lib/sound";
 import {
   CHEER_MESSAGES,
   LEVEL_PASS_MESSAGES,
@@ -33,6 +33,9 @@ interface Readiness {
   requiredStreak: number;
   requiredAccuracyPct: number;
   totalTestsSoFar: number;
+  coveredCount: number;
+  requiredCoverageCount: number;
+  fullyCovered: boolean;
 }
 interface Summary {
   student: {
@@ -118,18 +121,33 @@ interface RetestSubmitResponse {
 type SubmitResponse = DailySubmitResponse | LevelSubmitResponse | RetestSubmitResponse;
 
 function ReadinessBars({ r }: { r: Readiness }) {
-  const pct = Math.min(100, Math.round((r.qualifyingStreak / r.requiredStreak) * 100));
+  const streakPct = Math.min(100, Math.round((r.qualifyingStreak / r.requiredStreak) * 100));
+  const coveragePct = r.requiredCoverageCount > 0 ? Math.min(100, Math.round((r.coveredCount / r.requiredCoverageCount) * 100)) : 0;
   return (
     <div className="readiness">
       <div className="readiness-row">
         <div className="row-label">
+          <span>이 단계 문제 전체 연습 완료</span>
+          <span className={r.fullyCovered ? "ok" : ""}>
+            {r.coveredCount}/{r.requiredCoverageCount}개
+          </span>
+        </div>
+        <div className="mini-track">
+          <div className="mini-fill" style={{ width: `${coveragePct}%`, background: r.fullyCovered ? "var(--good)" : "var(--brand)" }} />
+        </div>
+      </div>
+      <div className="readiness-row">
+        <div className="row-label">
           <span>연속 {r.requiredAccuracyPct}% 이상 달성</span>
-          <span className={r.eligible ? "ok" : ""}>
+          <span className={r.qualifyingStreak >= r.requiredStreak ? "ok" : ""}>
             {r.qualifyingStreak}/{r.requiredStreak}회
           </span>
         </div>
         <div className="mini-track">
-          <div className="mini-fill" style={{ width: `${pct}%`, background: r.eligible ? "var(--good)" : "var(--brand)" }} />
+          <div
+            className="mini-fill"
+            style={{ width: `${streakPct}%`, background: r.qualifyingStreak >= r.requiredStreak ? "var(--good)" : "var(--brand)" }}
+          />
         </div>
       </div>
     </div>
@@ -148,6 +166,7 @@ export default function StudentPage() {
   const [timedOutFlag, setTimedOutFlag] = useState(false);
   const submittedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastTickSlotRef = useRef<number | null>(null);
 
   const loadSummary = useCallback(async () => {
     const s = await api<Summary>("/api/student/summary");
@@ -201,6 +220,7 @@ export default function StudentPage() {
       setAnswers(new Array(data.problems.length).fill(""));
       setRemaining(data.config.timeLimitSec);
       setView("exam");
+      if (kind === "level") playStartChime();
     } catch (ex) {
       alert(ex instanceof ApiError ? ex.message : "시작하지 못했습니다.");
       if (ex instanceof ApiError && (ex.status === 409 || ex.status === 403)) await loadSummary();
@@ -238,14 +258,32 @@ export default function StudentPage() {
     [examState, answers, loadSummary]
   );
 
-  // 타이머
+  // 타이머 — 승급 시험(kind === "level")에서는 시간이 얼마 안 남았을 때 "똑딱" 소리가
+  // 점점 빨라지고(막판엔 거의 심장박동처럼), 시간 초과되면 폭탄 터지는 효과음이 난다.
   useEffect(() => {
     if (view !== "exam" || !examState) return;
+    lastTickSlotRef.current = null;
     timerRef.current = setInterval(() => {
       const elapsedMs = Date.now() - examState.startTs;
       const left = Math.max(0, examState.config.timeLimitSec - Math.floor(elapsedMs / 1000));
       setRemaining(left);
-      if (left <= 0) submitExam(true);
+
+      if (examState.kind === "level" && left > 0) {
+        // 남은 시간에 따라 "똑" 소리 간격을 점점 좁혀서 조바심 나는 효과를 준다.
+        const tickIntervalMs = left <= 3 ? 250 : left <= 7 ? 500 : left <= 15 ? 1000 : null;
+        if (tickIntervalMs) {
+          const slot = Math.floor(elapsedMs / tickIntervalMs);
+          if (lastTickSlotRef.current !== slot) {
+            lastTickSlotRef.current = slot;
+            playTick(left <= 7);
+          }
+        }
+      }
+
+      if (left <= 0) {
+        if (examState.kind === "level" && !submittedRef.current) playExplosion();
+        submitExam(true);
+      }
     }, 250);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -267,7 +305,6 @@ export default function StudentPage() {
         </div>
         <nav>
           <span className="muted">{name} 님</span>
-          <Link href="/board">게시판</Link>
           <button className="link" onClick={logout}>
             로그아웃
           </button>
@@ -285,7 +322,7 @@ export default function StudentPage() {
         )}
 
         {view === "exam" && examState && (
-          <div className="card exam-box">
+          <div className={`card exam-box${examState.kind === "level" ? " level-exam" : ""}`}>
             <h2 className="mt0">
               {examState.kind === "daily"
                 ? "📅 오늘의 테스트"
@@ -298,7 +335,10 @@ export default function StudentPage() {
                 이 중 {examState.forcedWrongCount}문제는 예전에 틀렸던 문제 복습이에요 🔁
               </p>
             )}
-            <div className="timer" style={{ color: remaining <= 30 ? "var(--bad)" : undefined }}>
+            <div
+              className={`timer${examState.kind === "level" ? " timer-level" : ""}${remaining <= 15 && examState.kind === "level" ? " timer-urgent" : ""}`}
+              style={{ color: remaining <= 30 ? "var(--bad)" : undefined }}
+            >
               {String(Math.floor(remaining / 60)).padStart(2, "0")}:{String(remaining % 60).padStart(2, "0")}
             </div>
             <div className="progress-track">
@@ -410,8 +450,9 @@ function Dashboard({
     if (!r.eligible) {
       callout = (
         <div className="callout wait">
-          아직 승급 시험 자격 기준을 채우지 못했어요. 오늘의 테스트에서 연속 {r.requiredAccuracyPct}% 이상을{" "}
-          {r.requiredStreak}회 달성하면 시험을 볼 수 있어요!
+          아직 승급 시험 자격 기준을 채우지 못했어요. 이 단계의 문제({r.requiredCoverageCount}개)를 전부{" "}
+          한 번씩 풀어보고, 오늘의 테스트에서 연속 {r.requiredAccuracyPct}% 이상을 {r.requiredStreak}회
+          달성하면 시험을 볼 수 있어요!
         </div>
       );
     } else if (levelExam.attemptedToday) {
@@ -560,6 +601,14 @@ function ResultView({ data, timedOut, onDone }: { data: SubmitResponse; timedOut
     if (isLevel) return pickRandom(data.result.passed ? LEVEL_PASS_MESSAGES : LEVEL_FAIL_MESSAGES);
     if (isRetest) return pickRandom(data.allCleared ? RETEST_CLEAR_MESSAGES : RETEST_PARTIAL_MESSAGES);
     return pickRandom(CHEER_MESSAGES);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result.id]);
+
+  // 승급 시험 결과 효과음 — 결과 id당 한 번만 재생한다.
+  useEffect(() => {
+    if (!isLevel) return;
+    if (data.result.passed) playPassFanfare();
+    else playFailTone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result.id]);
 

@@ -6,10 +6,12 @@ import {
   dailyTestConfigFor,
   dailyTestConfigForCustom,
   tablesForStudent,
+  pairsForLevel,
   READINESS_CONFIG,
   todayKST,
 } from "./levels";
 import { computeCurrentWrongPairs } from "./retest";
+import { resolveExamConfig } from "./examSettings";
 
 // 학년 문자열("3학년", "중1", "중학교 1학년" 등)을 저학년→고학년 순으로 정렬할 수 있는
 // 숫자로 변환한다. 초등 1~6학년은 1~6, 중1~3은 7~9, 고1~3은 10~12로 매핑.
@@ -76,30 +78,48 @@ export async function studentHistory(studentId: string, limit = 20) {
   return { daily, levelExams, levelUps };
 }
 
-// 승급 시험 자격 기준: 오늘의 테스트를 최근 것부터 거슬러 올라가며 정답률이
-// requiredAccuracy(90%) 이상인 기록이 연속으로 requiredStreak(10)회 이어져야 한다.
-// (예전의 "연속 출석일" 조건은 제외하고, 정답률 연속 달성 하나로 단순화)
-export async function computeReadiness(studentId: string) {
+// 승급 시험 자격 기준: 아래 두 가지를 모두 만족해야 한다.
+// 1) 커버리지 — 지금 도전 중인 단계의 사분면에 속한 모든 (단×배수) 조합을 "오늘의
+//    테스트"에서 최소 한 번은 접해봤어야 한다. 저학년은 단을 하나씩 나눠서(2단→3단→4단...)
+//    연습하는 경우가 많아 하루에 전 범위를 다 볼 수 없으므로, 여러 날에 걸쳐 누적으로
+//    전부 봤는지를 확인한다(정답 여부와 무관하게 "봤는지"만 본다).
+// 2) 연속 정답 — 오늘의 테스트를 최근 것부터 거슬러 올라가며 100%인 기록이 연속으로
+//    requiredStreak(5)회 이어져야 한다. 중간에 한 번이라도 미달이면 그 지점에서 끊긴다.
+export async function computeReadiness(studentId: string, level: number) {
   const { requiredStreak, requiredAccuracy } = READINESS_CONFIG;
-  // 연속 기록이 끊기는 지점까지만 확인하면 되므로 필요한 것보다 조금 더 넉넉히 가져온다.
-  const recentTests = await prisma.dailyTest.findMany({
+  const levelDef = getLevelDef(level);
+  const requiredKeys = new Set((levelDef ? pairsForLevel(levelDef) : []).map(([a, b]) => `${a}x${b}`));
+
+  // 커버리지는 전체 이력을 봐야 하므로 개수 제한 없이 가져온다(문항 수가 많지 않아 부담 적음).
+  const allTests = await prisma.dailyTest.findMany({
     where: { studentId },
     orderBy: { takenAt: "desc" },
-    take: requiredStreak + 10,
+    select: { score: true, total: true, detail: true },
   });
 
+  const seenKeys = new Set<string>();
+  for (const t of allTests) {
+    const detail = (t.detail as unknown as { a: number; b: number }[]) || [];
+    for (const d of detail) seenKeys.add(`${d.a}x${d.b}`);
+  }
+  const coveredCount = Array.from(requiredKeys).filter((k) => seenKeys.has(k)).length;
+  const fullyCovered = requiredKeys.size > 0 && coveredCount === requiredKeys.size;
+
   let qualifyingStreak = 0;
-  for (const t of recentTests) {
+  for (const t of allTests) {
     if (t.total > 0 && t.score / t.total >= requiredAccuracy) qualifyingStreak++;
     else break;
   }
 
   return {
-    eligible: qualifyingStreak >= requiredStreak,
+    eligible: fullyCovered && qualifyingStreak >= requiredStreak,
     qualifyingStreak: Math.min(qualifyingStreak, requiredStreak),
     requiredStreak,
     requiredAccuracyPct: Math.round(requiredAccuracy * 100),
-    totalTestsSoFar: recentTests.length,
+    totalTestsSoFar: allTests.length,
+    coveredCount,
+    requiredCoverageCount: requiredKeys.size,
+    fullyCovered,
   };
 }
 
@@ -108,7 +128,8 @@ export async function studentSummary(s: Student) {
   const levelDef = getLevelDef(s.level);
   const isMaster = s.level >= MASTER_LEVEL;
   const attemptToday = isMaster ? null : await levelExamAttemptToday(s.id, s.level);
-  const readiness = isMaster ? null : await computeReadiness(s.id);
+  const readiness = isMaster ? null : await computeReadiness(s.id, s.level);
+  const examConfig = isMaster ? null : await resolveExamConfig(s.level, s.examTimeOverrideSec);
   const history = await studentHistory(s.id, 10);
   const wrongPairs = await computeCurrentWrongPairs(s.id);
 
@@ -132,6 +153,7 @@ export async function studentSummary(s: Student) {
       multMax: s.customMultMax,
       allowDuplicates: s.allowDuplicates,
       problemOrder: s.problemOrder,
+      examTimeOverrideSec: s.examTimeOverrideSec,
     },
     wrongCount: wrongPairs.length,
     levelExam: isMaster
@@ -142,7 +164,7 @@ export async function studentSummary(s: Student) {
           lastAttemptToday: attemptToday,
           readiness,
           levelDef,
-          config: levelDef!.examConfig,
+          config: examConfig!,
         },
     history,
   };

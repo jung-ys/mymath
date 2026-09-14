@@ -94,23 +94,41 @@ interface Readiness {
   requiredStreak: number;
   requiredAccuracyPct: number;
   totalTestsSoFar: number;
+  coveredCount: number;
+  requiredCoverageCount: number;
+  fullyCovered: boolean;
 }
 
 function ReadinessBlock({ r }: { r: Readiness }) {
-  const pct = Math.min(100, Math.round((r.qualifyingStreak / r.requiredStreak) * 100));
+  const streakPct = Math.min(100, Math.round((r.qualifyingStreak / r.requiredStreak) * 100));
+  const coveragePct = r.requiredCoverageCount > 0 ? Math.min(100, Math.round((r.coveredCount / r.requiredCoverageCount) * 100)) : 0;
   return (
     <>
       <div className={`callout ${r.eligible ? "go" : "wait"}`}>{r.eligible ? "승급 시험 자격 충족" : "승급 시험 자격 미충족"}</div>
       <div className="readiness">
         <div className="readiness-row">
           <div className="row-label">
+            <span>전체 범위 연습 완료 (단마다 나눠서 풀어도 누적으로 계산돼요)</span>
+            <span className={r.fullyCovered ? "ok" : ""}>
+              {r.coveredCount}/{r.requiredCoverageCount}개
+            </span>
+          </div>
+          <div className="mini-track">
+            <div className="mini-fill" style={{ width: `${coveragePct}%`, background: r.fullyCovered ? "var(--good)" : "var(--brand)" }} />
+          </div>
+        </div>
+        <div className="readiness-row">
+          <div className="row-label">
             <span>연속 {r.requiredAccuracyPct}% 이상 달성</span>
-            <span className={r.eligible ? "ok" : ""}>
+            <span className={r.qualifyingStreak >= r.requiredStreak ? "ok" : ""}>
               {r.qualifyingStreak}/{r.requiredStreak}회
             </span>
           </div>
           <div className="mini-track">
-            <div className="mini-fill" style={{ width: `${pct}%`, background: r.eligible ? "var(--good)" : "var(--brand)" }} />
+            <div
+              className="mini-fill"
+              style={{ width: `${streakPct}%`, background: r.qualifyingStreak >= r.requiredStreak ? "var(--good)" : "var(--brand)" }}
+            />
           </div>
         </div>
       </div>
@@ -406,6 +424,8 @@ function AdminDashboard() {
         </form>
       </div>
 
+      <LevelTimeSettingsCard />
+
       <div className="card">
         <h2 className="mt0">🎁 레벨업 보상 체크리스트</h2>
         <p className="muted" style={{ fontSize: "0.85rem" }}>
@@ -518,6 +538,106 @@ function AdminDashboard() {
   );
 }
 
+interface LevelTimeSetting {
+  level: number;
+  title: string;
+  defaultTimeLimitSec: number;
+  overrideTimeLimitSec: number | null;
+}
+
+function LevelTimeSettingsCard() {
+  const [rows, setRows] = useState<LevelTimeSetting[] | null>(null);
+  const [minutes, setMinutes] = useState<Record<number, string>>({});
+  const [savingLevel, setSavingLevel] = useState<number | null>(null);
+  const [err, setErr] = useState("");
+
+  const load = useCallback(async () => {
+    try {
+      const data = await api<{ levels: LevelTimeSetting[] }>("/api/admin/level-settings");
+      setRows(data.levels);
+      const next: Record<number, string> = {};
+      data.levels.forEach((l) => {
+        next[l.level] = l.overrideTimeLimitSec ? String(Math.round(l.overrideTimeLimitSec / 60)) : "";
+      });
+      setMinutes(next);
+    } catch (ex) {
+      setErr(ex instanceof ApiError ? ex.message : "불러오지 못했습니다.");
+    }
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      await load();
+    })();
+  }, [load]);
+
+  async function save(level: number) {
+    setSavingLevel(level);
+    setErr("");
+    try {
+      const raw = minutes[level]?.trim();
+      const timeLimitSec = raw ? Number(raw) * 60 : 0;
+      await api("/api/admin/level-settings", { method: "POST", body: { level, timeLimitSec } });
+      await load();
+    } catch (ex) {
+      setErr(ex instanceof ApiError ? ex.message : "저장에 실패했습니다.");
+    } finally {
+      setSavingLevel(null);
+    }
+  }
+
+  if (!rows) return null;
+
+  return (
+    <div className="card">
+      <h2 className="mt0">⏱ 단계별 승급 시험 제한시간</h2>
+      <p className="muted" style={{ fontSize: "0.85rem" }}>
+        비워두면 문항 수 기준 자동 계산값을 씁니다. 분 단위로 입력하면 그 단계를 보는{" "}
+        <strong>모든 학생</strong>에게 적용돼요. 특정 학생만 다르게 주려면 그 학생 상세 화면에서 따로
+        설정하세요(그게 우선 적용됩니다).
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>단계</th>
+            <th>기본값</th>
+            <th>전체 적용(분)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.level}>
+              <td>{r.title}</td>
+              <td className="muted">{Math.round(r.defaultTimeLimitSec / 60)}분</td>
+              <td>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  style={{ width: 80 }}
+                  placeholder="자동"
+                  value={minutes[r.level] ?? ""}
+                  onChange={(e) => {
+                    const digitsOnly = e.target.value.replace(/[^0-9]/g, "").slice(0, 3);
+                    setMinutes((prev) => ({ ...prev, [r.level]: digitsOnly }));
+                  }}
+                />
+              </td>
+              <td>
+                <button className="btn small" disabled={savingLevel === r.level} onClick={() => save(r.level)}>
+                  {savingLevel === r.level ? "저장 중..." : "저장"}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {err && <div className="error-box show">{err}</div>}
+    </div>
+  );
+}
+
 function StudentDetail({
   detail,
   masterLevel,
@@ -566,6 +686,15 @@ function StudentDetail({
       {!student.isMaster && levelExam?.readiness && <ReadinessBlock r={levelExam.readiness} />}
 
       <CustomConfigEditor studentId={student.id} customConfig={customConfig} onSaved={onConfigSaved} />
+
+      {!student.isMaster && "config" in levelExam && levelExam.config && (
+        <ExamTimeEditor
+          studentId={student.id}
+          overrideSec={customConfig.examTimeOverrideSec}
+          effectiveSec={levelExam.config.timeLimitSec}
+          onSaved={onConfigSaved}
+        />
+      )}
 
       <div className="grid-2">
         <div>
@@ -708,6 +837,70 @@ function SchoolGradeEditor({
         </button>
         {err && <div className="error-box show">{err}</div>}
       </div>
+    </div>
+  );
+}
+
+function ExamTimeEditor({
+  studentId,
+  overrideSec,
+  effectiveSec,
+  onSaved,
+}: {
+  studentId: string;
+  overrideSec: number | null;
+  effectiveSec: number;
+  onSaved: () => Promise<void>;
+}) {
+  const [minutes, setMinutes] = useState(overrideSec ? String(Math.round(overrideSec / 60)) : "");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function save(clear = false) {
+    setSaving(true);
+    setErr("");
+    try {
+      const timeLimitSec = clear ? 0 : minutes.trim() ? Number(minutes.trim()) * 60 : 0;
+      await api(`/api/admin/students/${studentId}/exam-time`, { method: "POST", body: { timeLimitSec } });
+      if (clear) setMinutes("");
+      await onSaved();
+    } catch (ex) {
+      setErr(ex instanceof ApiError ? ex.message : "저장에 실패했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ background: "#f8f6ff" }}>
+      <h3 className="mt0">⏱ 이 학생만 승급 시험 시간 다르게 주기</h3>
+      <p className="muted" style={{ fontSize: "0.82rem" }}>
+        현재 적용 중인 제한시간: <strong>{Math.round(effectiveSec / 60)}분</strong>{" "}
+        {overrideSec ? "(이 학생 개별 설정)" : "(단계별 기본/전체 설정 따름)"}
+      </p>
+      <div className="grid-2">
+        <div>
+          <label htmlFor="exam-time-minutes">개별 제한시간 (분, 비워두면 해제)</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            id="exam-time-minutes"
+            placeholder="예: 15"
+            value={minutes}
+            onChange={(e) => setMinutes(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
+          />
+        </div>
+      </div>
+      <button className="btn small" disabled={saving} onClick={() => save(false)}>
+        {saving ? "저장 중..." : "저장"}
+      </button>{" "}
+      {overrideSec && (
+        <button className="btn small ghost" disabled={saving} onClick={() => save(true)}>
+          개별 설정 해제
+        </button>
+      )}
+      {err && <div className="error-box show">{err}</div>}
     </div>
   );
 }

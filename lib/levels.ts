@@ -179,13 +179,24 @@ export function pairsForTables(tables: number[], multMin = 1, multMax = 20): Pai
   return pairs;
 }
 
-// 승급 시험 "자격 기준": 오늘의 테스트를 최근 것부터 거슬러 올라가며 정답률이
-// requiredAccuracy(100%) 인 것이 연속으로 requiredStreak(10)회 이어져야 한다.
-// 중간에 한 번이라도 기준 미달이 있으면 그 지점에서 연속 기록이 끊긴다.
+// 승급 시험 "자격 기준" — 두 가지를 모두 만족해야 한다.
+// 1) 커버리지: 지금 도전 중인 단계의 사분면에 속한 모든 (단×배수) 조합을 "오늘의 테스트"에서
+//    한 번 이상 접해봐야 한다. 저학년은 단을 하나씩 나눠서(2단→3단→4단...) 연습하는 경우가
+//    많아 한 번에 전 범위를 다 볼 수 없으니, 여러 날에 걸쳐 누적으로 전부 봤는지를 본다.
+// 2) 연속 정답: 오늘의 테스트를 최근 것부터 거슬러 올라가며 100%인 것이 연속으로
+//    requiredStreak(5)회 이어져야 한다. 중간에 한 번이라도 미달이 있으면 그 지점에서 끊긴다.
+// (computeReadiness에서 실제 계산 — lib/studentView.ts)
 export const READINESS_CONFIG = {
-  requiredStreak: 10,
+  requiredStreak: 5,
   requiredAccuracy: 1.0, // 100%
 };
+
+// 관리자가 승급 시험 제한시간을 직접 지정했을 때, 기본 계산값 대신 그 값을 쓰도록
+// examConfig를 덮어쓴다. 문항 수/통과 점수는 그대로 두고 시간만 바꾼다.
+export function examConfigWithTimeOverride(base: ExamConfig, overrideSec?: number | null): ExamConfig {
+  if (!overrideSec || overrideSec <= 0) return base;
+  return { ...base, timeLimitSec: Math.round(overrideSec) };
+}
 
 // 오늘의 테스트 문항 수는 지금까지 배운 단 수에 비례해서 늘어난다
 // (단마다 3문제, 최소 15문제 ~ 최대 30문제로 제한해 너무 길어지지 않게 한다).

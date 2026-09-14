@@ -12,7 +12,8 @@ type ReportData = Awaited<ReturnType<typeof studentSummary>>;
 type Readiness = NonNullable<Extract<ReportData["levelExam"], { readiness: unknown }>["readiness"]>;
 
 function ReadinessBlock({ r }: { r: Readiness }) {
-  const pct = Math.min(100, Math.round((r.qualifyingStreak / r.requiredStreak) * 100));
+  const streakPct = Math.min(100, Math.round((r.qualifyingStreak / r.requiredStreak) * 100));
+  const coveragePct = r.requiredCoverageCount > 0 ? Math.min(100, Math.round((r.coveredCount / r.requiredCoverageCount) * 100)) : 0;
   return (
     <div className="card">
       <h2 className="mt0">다음 승급 시험 자격 기준</h2>
@@ -20,13 +21,27 @@ function ReadinessBlock({ r }: { r: Readiness }) {
       <div className="readiness">
         <div className="readiness-row">
           <div className="row-label">
+            <span>이 단계 문제 전체 연습 완료</span>
+            <span className={r.fullyCovered ? "ok" : ""}>
+              {r.coveredCount}/{r.requiredCoverageCount}개
+            </span>
+          </div>
+          <div className="mini-track">
+            <div className="mini-fill" style={{ width: `${coveragePct}%`, background: r.fullyCovered ? "var(--good)" : "var(--brand)" }} />
+          </div>
+        </div>
+        <div className="readiness-row">
+          <div className="row-label">
             <span>연속 {r.requiredAccuracyPct}% 이상 달성</span>
-            <span className={r.eligible ? "ok" : ""}>
+            <span className={r.qualifyingStreak >= r.requiredStreak ? "ok" : ""}>
               {r.qualifyingStreak}/{r.requiredStreak}회
             </span>
           </div>
           <div className="mini-track">
-            <div className="mini-fill" style={{ width: `${pct}%`, background: r.eligible ? "var(--good)" : "var(--brand)" }} />
+            <div
+              className="mini-fill"
+              style={{ width: `${streakPct}%`, background: r.qualifyingStreak >= r.requiredStreak ? "var(--good)" : "var(--brand)" }}
+            />
           </div>
         </div>
       </div>

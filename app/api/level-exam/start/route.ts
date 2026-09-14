@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthedStudent } from "@/lib/apiAuth";
 import { levelExamAttemptToday, computeReadiness } from "@/lib/studentView";
 import { getLevelDef, generateLevelExamProblems, MASTER_LEVEL } from "@/lib/levels";
+import { resolveExamConfig } from "@/lib/examSettings";
 import { encryptExamToken } from "@/lib/examToken";
 
 export async function POST(req: NextRequest) {
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
   if (await levelExamAttemptToday(student.id, student.level)) {
     return NextResponse.json({ error: "오늘은 이미 이 단계 승급 시험에 응시했습니다. 내일 다시 도전해주세요." }, { status: 409 });
   }
-  const readiness = await computeReadiness(student.id);
+  const readiness = await computeReadiness(student.id, student.level);
   if (!readiness.eligible) {
     return NextResponse.json(
       { error: "아직 승급 시험 자격 기준을 채우지 못했어요. 오늘의 테스트를 꾸준히 풀어주세요.", readiness },
@@ -23,20 +24,21 @@ export async function POST(req: NextRequest) {
   }
 
   const levelDef = getLevelDef(student.level)!;
+  const config = (await resolveExamConfig(student.level, student.examTimeOverrideSec)) ?? levelDef.examConfig;
   const problems = generateLevelExamProblems(levelDef);
   const examToken = encryptExamToken({
     studentId: student.id,
     kind: "level",
     level: student.level,
     problems,
-    config: levelDef.examConfig,
+    config,
     createdAt: Date.now(),
   });
 
   return NextResponse.json({
     examToken,
     problems: problems.map(({ a, b }) => ({ a, b })),
-    config: levelDef.examConfig,
+    config,
     levelDef,
   });
 }

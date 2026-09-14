@@ -36,6 +36,10 @@ model Student {
   allowDuplicates Boolean  @default(false) // 체크 시 같은 문제가 여러 번 나올 수 있음
   problemOrder    String   @default("random") // "random" | "sequential" | "reverse"
 
+  // 이 학생만 승급 시험 제한시간을 따로 줄 때 사용 (초 단위). null이면 단계별 공통 설정
+  // (LevelTimeSetting, 그것도 없으면 자동 계산값)을 그대로 따른다.
+  examTimeOverrideSec Int?
+
   dailyTests     DailyTest[]
   levelExams     LevelExam[]
   levelUps       LevelUp[]
@@ -90,6 +94,14 @@ model RetestAttempt {
   takenAt    DateTime @default(now())
 
   @@index([studentId, takenAt])
+}
+
+// 단계별 승급 시험 제한시간을 관리자가 전체 적용으로 덮어쓸 때 쓰는 설정.
+// 행이 없으면 그 단계는 자동 계산된 기본 제한시간을 그대로 쓴다.
+model LevelTimeSetting {
+  level       Int      @id // 1~5 (lib/levels.ts의 LEVELS.level과 대응)
+  timeLimitSec Int
+  updatedAt   DateTime @updatedAt
 }
 
 // 레벨업(승급 통과) 이력 - 보상(셀레나 달러/간식쿠폰) 지급 체크리스트로도 사용

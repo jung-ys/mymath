@@ -601,7 +601,8 @@ function LevelTimeSettingsCard() {
         <thead>
           <tr>
             <th>단계</th>
-            <th>기본값</th>
+            <th>현재 적용 중</th>
+            <th>자동 계산 기본값</th>
             <th>전체 적용(분)</th>
             <th></th>
           </tr>
@@ -610,6 +611,14 @@ function LevelTimeSettingsCard() {
           {rows.map((r) => (
             <tr key={r.level}>
               <td>{r.title}</td>
+              <td>
+                <strong style={{ color: r.overrideTimeLimitSec ? "var(--brand)" : "var(--ink)" }}>
+                  {Math.round((r.overrideTimeLimitSec ?? r.defaultTimeLimitSec) / 60)}분
+                </strong>{" "}
+                <span className="muted" style={{ fontSize: "0.78rem" }}>
+                  {r.overrideTimeLimitSec ? "(전체 적용)" : "(자동)"}
+                </span>
+              </td>
               <td className="muted">{Math.round(r.defaultTimeLimitSec / 60)}분</td>
               <td>
                 <input

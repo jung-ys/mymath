@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { api, ApiError, levelBadgeClass, levelEmoji, fmtDate } from "@/lib/clientUtils";
 import { ACADEMY_NAME } from "@/lib/branding";
 import { rewardLabel } from "@/lib/rewards";
+import { FINAL_LEVEL } from "@/lib/levels";
 import {
   CHEER_MESSAGES,
   LEVEL_PASS_MESSAGES,
@@ -104,6 +105,7 @@ interface DailySubmitResponse {
 interface LevelSubmitResponse {
   result: LevelResultRecord;
   leveledUp: boolean;
+  confirmPending: boolean; // 이번엔 100%를 받았지만, 승급 확정을 위한 두 번째 100%가 아직 필요함
   isMaster: boolean;
   newLevel: number;
   newLevelDef: LevelDef | null;
@@ -426,8 +428,14 @@ function Dashboard({
         {callout}
         <ReadinessBars r={r} />
         <p className="muted" style={{ fontSize: "0.85rem" }}>
-          {levelExam.config.questionCount}문제 중 {levelExam.config.passScore}개 이상, 제한시간{" "}
-          {Math.floor(levelExam.config.timeLimitSec / 60)}분 안에 풀면 통과!
+          {levelExam.config.questionCount}문제 <strong>전부 정답(100점)</strong>, 제한시간{" "}
+          {Math.floor(levelExam.config.timeLimitSec / 60)}분 안에 풀어야 통과예요.
+          {levelExam.levelDef.level === FINAL_LEVEL && (
+            <>
+              {" "}
+              그리고 <strong>두 번 연속 100점</strong>을 받아야 최종 마스터가 확정돼요!
+            </>
+          )}
         </p>
         <button className="btn" disabled={disabled} onClick={onStartLevel}>
           승급 시험 시작
@@ -558,19 +566,30 @@ function ResultView({ data, timedOut, onDone }: { data: SubmitResponse; timedOut
   let banner: React.ReactNode;
   let mascotMood: "cheer" | "strong" | "soft";
   if (isLevel) {
-    const passed = data.result.passed;
-    mascotMood = passed ? "strong" : "soft";
+    const passed = data.result.passed; // 이번 응시 100% 여부
+    const { leveledUp, confirmPending } = data;
+    mascotMood = leveledUp ? "strong" : confirmPending ? "cheer" : "soft";
     banner = (
       <div className={`result-banner ${passed ? "pass" : "fail"}`}>
-        <div className="confetti">{passed ? "🎉🏆🎉" : "💪"}</div>
-        <h2>{passed ? "축하해요! 승급 성공!" : "아쉬워요, 다음에 다시 도전!"}</h2>
+        <div className="confetti">{leveledUp ? "🎉🏆🎉" : confirmPending ? "✅" : "💪"}</div>
+        <h2>
+          {leveledUp
+            ? "축하해요! 승급 성공!"
+            : confirmPending
+              ? "100점이에요! 한 번만 더 확인할게요"
+              : "아쉬워요, 다음에 다시 도전!"}
+        </h2>
         <div className="score">
           {result.score} / {result.total}
         </div>
         {timedOut && <p className="muted">시간 초과로 자동 제출되었어요.</p>}
-        {passed ? (
+        {leveledUp ? (
           <p>
             선생님께 말씀드리고 <strong>{rewardLabel(data.result.level)}</strong>을 받아가세요! 🍬
+          </p>
+        ) : confirmPending ? (
+          <p className="muted">
+            우연이 아닌지 한 번 더 확인해요. <strong>다음 번 응시에서도 100점</strong>을 받으면 그때 승급이 확정돼요!
           </p>
         ) : (
           <p className="muted">내일 다시 응시할 수 있어요. 오늘의 테스트로 연습해봐요!</p>

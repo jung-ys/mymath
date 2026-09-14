@@ -1,18 +1,28 @@
-// 구구단을 4단계로 구성한다. 표준 구구단(2~9단 × 1~9)을 넘어서, 단(段)과 배수 양쪽을
-// 두 구간으로 나눠 4개의 "사분면(quadrant)"으로 단계를 정의한다.
+// 구구단을 5단계로 구성한다. 표준 구구단(2~9단 × 1~9)을 넘어서, 1~4단계는 단(段)과
+// 배수 양쪽을 두 구간으로 나눠 4개의 "사분면(quadrant)"으로 정의하고, 그 위에 전체
+// 범위(2~19단 × 1~20배)를 무작위로 뒤섞어 내는 "마스터 단계"(5단계)를 최종 관문으로 둔다.
 //
 //            배수 1~10          배수 11~20
 //   단 2~10    1단계               3단계
 //   단 11~19   2단계               4단계
 //
-// Student.level 은 "현재 도전 중인 단계"를 의미한다 (1~4).
-// 4단계 승급 시험까지 통과하면 level 은 5(마스터)가 된다.
+//   5단계 = 마스터 단계: 위 4개 사분면 전체(2~19단 × 1~20배)에서 150문제를 무작위로 출제.
+//
+// Student.level 은 "현재 도전 중인 단계"를 의미한다 (1~5).
+// 마스터 단계(5단계) 승급 시험까지 통과하면 level 은 MASTER_LEVEL(6, 전 단계 마스터)이 된다.
 //
 // 승급 시험 문제 구성 방식
-// - perTableQuota: 그 단계에 속한 단(段) 하나당 출제할 문항 수 (multRange 폭 안에서 무작위 선택).
-//   전체 배수 폭(10개)을 다 내면 한 단계당 90문제로 시험이 지나치게 길어지므로 일부만 뽑는다.
-// - 2단계부터는 자기 사분면 문제에 더해, 그 아래 모든 단계의 사분면에서 뽑은 문제를
-//   CUMULATIVE_EXTRA_COUNT개 추가로 출제해 이전에 배운 내용을 계속 누적해서 확인한다.
+// - 1~4단계: 빠짐없이 확인하기 위해 그 단계 자기 사분면(단×배수)의 조합을 전부(단마다
+//   배수 구간 전체) 출제한다 — 단계당 90문제. 2단계부터는 여기에 더해 그 아래 모든
+//   단계의 사분면에서 뽑은 문제를 CUMULATIVE_EXTRA_COUNT개 추가로 출제해 이전에 배운
+//   내용을 계속 누적해서 확인한다(2~4단계 = 110문제).
+// - 마스터 단계(5단계): 전체 범위(360개 조합)에서 MASTER_EXAM_QUESTION_COUNT(150)문제를
+//   완전히 무작위로 뽑는다 — 이미 1~4단계에서 각 사분면을 낱낱이 확인했으므로 여기서는
+//   전 범위를 뒤섞어 종합적으로 확인하는 게 목적이다.
+// - 통과 기준은 항상 100%(전부 정답)이다. 1~4단계는 한 번 100%를 받으면 바로 승급되고,
+//   마스터 단계만 한 번 100%를 받아도 바로 확정되지 않고 그 다음 응시(다른 날 재도전)에서
+//   다시 한 번 연속으로 100%를 받아야 최종적으로 마스터가 확정된다(우연히 한 번 다 맞힌
+//   게 아니라 확실히 아는지 재확인하기 위함 — level-exam/submit 라우트에서 처리).
 
 export interface LevelDef {
   level: number;
@@ -20,7 +30,6 @@ export interface LevelDef {
   range: string;
   tables: number[]; // 이 단계에 속한 단(段) 목록, 예: [2,3,...,10]
   multRange: [number, number]; // 이 단계에서 출제하는 배수(곱하는 수) 구간, 예: [1,10]
-  perTableQuota: number;
   secPerQuestion: number;
   examConfig: ExamConfig;
 }
@@ -53,7 +62,6 @@ const RAW_LEVELS: Omit<LevelDef, "examConfig">[] = [
     range: "2~10단 · ×1~10배",
     tables: rangeArray(2, 10),
     multRange: [1, 10],
-    perTableQuota: 6,
     secPerQuestion: 6,
   },
   {
@@ -62,7 +70,6 @@ const RAW_LEVELS: Omit<LevelDef, "examConfig">[] = [
     range: "11~19단 · ×1~10배",
     tables: rangeArray(11, 19),
     multRange: [1, 10],
-    perTableQuota: 6,
     secPerQuestion: 7,
   },
   {
@@ -71,7 +78,6 @@ const RAW_LEVELS: Omit<LevelDef, "examConfig">[] = [
     range: "2~10단 · ×11~20배",
     tables: rangeArray(2, 10),
     multRange: [11, 20],
-    perTableQuota: 6,
     secPerQuestion: 7,
   },
   {
@@ -80,16 +86,28 @@ const RAW_LEVELS: Omit<LevelDef, "examConfig">[] = [
     range: "11~19단 · ×11~20배",
     tables: rangeArray(11, 19),
     multRange: [11, 20],
-    perTableQuota: 6,
+    secPerQuestion: 8,
+  },
+  {
+    level: 5,
+    title: "마스터 단계",
+    range: "전체 랜덤 · 2~19단 × 1~20배",
+    tables: rangeArray(2, 19),
+    multRange: [1, 20],
     secPerQuestion: 8,
   },
 ];
 
-const PASS_RATIO = 0.9; // 90% 이상 정답이어야 승급
+// 마지막 단계(현재 5단계 = 마스터 단계)는 사분면 전체를 다 내는 대신 고정된 수의
+// 문제를 전 범위에서 무작위로 뽑는다 — 그리고 이 단계만 승급에 "연속 2회 100점"이 필요하다.
+export const FINAL_LEVEL = RAW_LEVELS.length;
+export const MASTER_EXAM_QUESTION_COUNT = 150;
+
+const PASS_RATIO = 1.0; // 100% 정답이어야 통과
 const GRACE_SEC = 15; // 시간 초과 판정 여유
 
-// 2단계부터는 승급 시험이 "누적"이 된다: 그 단계 자신의 사분면은 quota만큼 출제하고,
-// 추가로 그 아래 모든 단계에서 뽑은 문제를 CUMULATIVE_EXTRA_COUNT개 더 얹는다.
+// 2단계부터 4단계까지는 승급 시험이 "누적"이 된다: 그 단계 자신의 사분면은 전부(90문제)
+// 출제하고, 추가로 그 아래 모든 단계에서 뽑은 문제를 CUMULATIVE_EXTRA_COUNT개 더 얹는다.
 // (1단계는 아래 단계가 없으므로 그대로 자기 사분면만 출제한다.)
 export const CUMULATIVE_EXTRA_COUNT = 20;
 
@@ -98,10 +116,14 @@ function multSpan(multRange: [number, number]): number {
 }
 
 function computeExamConfig(levelDef: Omit<LevelDef, "examConfig">): ExamConfig {
-  const quota = Math.min(levelDef.perTableQuota, multSpan(levelDef.multRange));
-  const ownCount = levelDef.tables.length * quota;
-  const extraCount = levelDef.level > 1 ? CUMULATIVE_EXTRA_COUNT : 0;
-  const questionCount = ownCount + extraCount;
+  let questionCount: number;
+  if (levelDef.level === FINAL_LEVEL) {
+    questionCount = MASTER_EXAM_QUESTION_COUNT;
+  } else {
+    const ownCount = levelDef.tables.length * multSpan(levelDef.multRange);
+    const extraCount = levelDef.level > 1 ? CUMULATIVE_EXTRA_COUNT : 0;
+    questionCount = ownCount + extraCount;
+  }
   const timeLimitSec = Math.round(questionCount * levelDef.secPerQuestion);
   const passScore = Math.ceil(questionCount * PASS_RATIO);
   return { questionCount, timeLimitSec, passScore, graceSec: GRACE_SEC };
@@ -109,7 +131,7 @@ function computeExamConfig(levelDef: Omit<LevelDef, "examConfig">): ExamConfig {
 
 export const LEVELS: LevelDef[] = RAW_LEVELS.map((l) => ({ ...l, examConfig: computeExamConfig(l) }));
 
-export const MASTER_LEVEL = LEVELS.length + 1; // 5 = 전 단계 마스터
+export const MASTER_LEVEL = LEVELS.length + 1; // 6 = 마스터 단계까지 통과한 "완전 마스터"
 
 // 한 단계(사분면)에 속한 모든 (단, 배수) 조합을 전부 나열한다.
 export function pairsForLevel(levelDef: Pick<LevelDef, "tables" | "multRange">): Pair[] {
@@ -122,10 +144,22 @@ export function pairsForLevel(levelDef: Pick<LevelDef, "tables" | "multRange">):
 }
 
 // 학생이 지금 도전 중인 단계까지의 모든 사분면을 합친 (단, 배수) 조합 (오늘의 테스트 기본 범위).
-// 마스터(모든 단계 통과)면 4개 사분면 전체를 합친다.
+// 마스터 단계(5단계)는 그 자체로 이미 1~4단계 전체를 합친 범위와 같으므로, 중복 없이
+// 합치기 위해 (단,배수) 쌍 기준으로 중복 제거한다.
 export function cumulativePairsForLevel(level: number): Pair[] {
   const upTo = level >= MASTER_LEVEL ? LEVELS : LEVELS.filter((l) => l.level <= level);
-  return upTo.flatMap(pairsForLevel);
+  const seen = new Set<string>();
+  const out: Pair[] = [];
+  for (const l of upTo) {
+    for (const p of pairsForLevel(l)) {
+      const key = `${p[0]}x${p[1]}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push(p);
+      }
+    }
+  }
+  return out;
 }
 
 // 위 pairs에서 중복 없는 단(段) 목록만 뽑아낸다 — 문항 수 자동 산정 등 "몇 개 단을 배웠는지"
@@ -224,19 +258,20 @@ export function timeLimitForDailyCount(count: number): number {
   return Math.round(count * DAILY_SEC_PER_QUESTION);
 }
 
-// 승급 시험용 문제 생성: 자기 사분면(단 × 배수구간)에서 단마다 perTableQuota개씩 무작위로
-// 뽑고, 2단계부터는 그 아래 모든 단계 사분면에서 CUMULATIVE_EXTRA_COUNT문제를 추가로 뽑아
-// 이전에 배운 내용을 계속 누적해서 확인한다.
+// 승급 시험용 문제 생성.
+// - 1~4단계: 자기 사분면(단×배수구간)의 조합을 빠짐없이 전부 출제하고, 2단계부터는 그
+//   아래 모든 단계 사분면에서 CUMULATIVE_EXTRA_COUNT문제를 추가로 뽑아 누적 확인한다.
+// - 마스터 단계(5단계): 전체 범위(2~19단 × 1~20배, 360개 조합)에서 완전히 무작위로
+//   MASTER_EXAM_QUESTION_COUNT(150)문제를 뽑는다.
 export function generateLevelExamProblems(levelDef: LevelDef): Problem[] {
-  const [lo, hi] = levelDef.multRange;
-  const multPool = rangeArray(lo, hi);
-  const quota = Math.min(levelDef.perTableQuota, multPool.length);
-  const problems: Problem[] = [];
+  if (levelDef.level === FINAL_LEVEL) {
+    const pool = pairsForLevel(levelDef);
+    const chosen = shuffle(pool).slice(0, Math.min(MASTER_EXAM_QUESTION_COUNT, pool.length));
+    return chosen.map(([a, b]) => ({ a, b, answer: a * b }));
+  }
 
-  levelDef.tables.forEach((t) => {
-    const chosenMults = shuffle(multPool).slice(0, quota);
-    chosenMults.forEach((m) => problems.push({ a: t, b: m, answer: t * m }));
-  });
+  const own = pairsForLevel(levelDef).map(([a, b]) => ({ a, b, answer: a * b }));
+  const problems: Problem[] = [...own];
 
   if (levelDef.level > 1) {
     const lowerPairs = LEVELS.filter((l) => l.level < levelDef.level).flatMap(pairsForLevel);

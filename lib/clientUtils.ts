@@ -37,13 +37,13 @@ export async function api<T = unknown>(path: string, options: { method?: string;
 }
 
 export function levelBadgeClass(level: number, masterLevel: number): string {
-  if (level >= masterLevel) return "lv5";
-  return "lv" + level;
+  if (level >= masterLevel) return "lv5"; // 완전 마스터도 5단계(마스터 단계)와 같은 색상
+  return "lv" + Math.min(level, 5);
 }
 
-const LEVEL_EMOJIS = ["🌱", "🌿", "🌳", "🍀"];
+const LEVEL_EMOJIS = ["🌱", "🌿", "🌳", "🍀", "👑"]; // 5단계(마스터 단계)부터 왕관이 등장한다
 
-// 현재 단계를 눈에 띄게 보여주는 귀여운 이모지. 4단계를 마스터하면 왕관으로 바뀐다.
+// 현재 단계를 눈에 띄게 보여주는 귀여운 이모지. 마스터 단계(5단계)부터는 왕관으로 표시한다.
 export function levelEmoji(level: number, masterLevel: number): string {
   if (level >= masterLevel) return "👑";
   return LEVEL_EMOJIS[level - 1] ?? "🌱";

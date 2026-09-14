@@ -111,7 +111,7 @@ export async function computeRangeReport(studentId: string, from: string, to: st
 
   const levelDef = getLevelDef(student.level);
   const currentLevelTitle =
-    student.level >= MASTER_LEVEL ? "4단계 (마스터단계)" : levelDef ? `${levelDef.title} (${levelDef.range})` : "-";
+    student.level >= MASTER_LEVEL ? "마스터 👑" : levelDef ? `${levelDef.title} (${levelDef.range})` : "-";
 
   return {
     studentName: student.name,

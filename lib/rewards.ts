@@ -8,9 +8,10 @@ export interface RewardInfo {
 
 const REWARDS: Record<number, RewardInfo> = {
   1: { dollars: 40, treat: null },
-  2: { dollars: 60, treat: null },
-  3: { dollars: 80, treat: null },
-  4: { dollars: 100, treat: "베스킨라빈스 더블콘" },
+  2: { dollars: 50, treat: null },
+  3: { dollars: 60, treat: null },
+  4: { dollars: 80, treat: null },
+  5: { dollars: 100, treat: "베스킨라빈스 더블콘" }, // 마스터 단계 통과 보상
 };
 
 export function rewardForLevel(level: number): RewardInfo {

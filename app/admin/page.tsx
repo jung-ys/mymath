@@ -281,7 +281,7 @@ function AdminDashboard() {
             {l.title} ({l.range})
           </option>
         ))}
-        <option value={masterLevel}>4단계 (마스터단계)</option>
+        <option value={masterLevel}>마스터 👑 (전 단계 완료)</option>
       </>
     );
   }
@@ -491,6 +491,11 @@ function StudentDetail({
         </div>
         <div>
           <h3>승급 시험 이력</h3>
+          <p className="muted" style={{ fontSize: "0.78rem", marginTop: -6 }}>
+            &ldquo;통과&rdquo;는 그 응시에서 100점을 받았다는 뜻이에요. 1~4단계는 통과하면 바로
+            승급되고, <strong>마스터 단계만</strong> 같은 단계에서 <strong>바로 다음 응시도 연속으로
+            통과</strong>해야 최종 마스터가 확정됩니다.
+          </p>
           {history.levelExams.length ? (
             <table>
               <thead>

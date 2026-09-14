@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthedStudent } from "@/lib/apiAuth";
 import { levelExamAttemptToday } from "@/lib/studentView";
 import { decryptExamToken } from "@/lib/examToken";
-import { todayKST, getLevelDef, MASTER_LEVEL } from "@/lib/levels";
+import { todayKST, getLevelDef, MASTER_LEVEL, FINAL_LEVEL } from "@/lib/levels";
 
 export async function POST(req: NextRequest) {
   const student = await getAuthedStudent(req);
@@ -37,11 +37,26 @@ export async function POST(req: NextRequest) {
   const config = payload.config;
   const elapsed = Number(elapsedSec) || 0;
   const timedOut = elapsed > (config.timeLimitSec ?? Infinity) + (config.graceSec ?? 0);
-  const passed = score >= (config.passScore ?? Infinity) && !timedOut;
+  const passed = score >= (config.passScore ?? Infinity) && !timedOut; // 이번 응시에서 100%를 받았는가
 
   const today = todayKST();
   const completedLevel = student.level;
-  const nextLevel = passed ? Math.min(completedLevel + 1, MASTER_LEVEL) : completedLevel;
+
+  // 1~4단계는 100%를 한 번만 받으면 바로 승급된다. 마지막 "마스터 단계"만 100%를
+  // "연속 2회" 받아야 최종 확정된다 (한 번의 만점이 우연이 아님을 재확인하기 위함).
+  // 하루 1회 제한이 있어 두 번째 응시는 자연히 다른 날이 된다 — 바로 직전 응시(이 단계
+  // 기준 가장 최근 기록)가 100%였고, 이번에도 100%면 확정.
+  let promote = passed;
+  let confirmPending = false;
+  if (passed && completedLevel === FINAL_LEVEL) {
+    const priorAttempt = await prisma.levelExam.findFirst({
+      where: { studentId: student.id, level: completedLevel },
+      orderBy: { takenAt: "desc" },
+    });
+    promote = !!priorAttempt?.passed;
+    confirmPending = !promote; // 이번엔 100%지만 아직 두 번째 확인이 필요함
+  }
+  const nextLevel = promote ? Math.min(completedLevel + 1, MASTER_LEVEL) : completedLevel;
 
   try {
     const ops: Prisma.PrismaPromise<unknown>[] = [
@@ -59,7 +74,7 @@ export async function POST(req: NextRequest) {
         },
       }),
     ];
-    if (passed) {
+    if (promote) {
       ops.push(
         prisma.student.update({ where: { id: student.id }, data: { level: nextLevel } }),
         prisma.levelUp.create({ data: { studentId: student.id, level: completedLevel } })
@@ -67,10 +82,11 @@ export async function POST(req: NextRequest) {
     }
     const [record] = (await prisma.$transaction(ops)) as [Awaited<ReturnType<typeof prisma.levelExam.create>>, ...unknown[]];
 
-    const newLevelDef = passed && nextLevel < MASTER_LEVEL ? getLevelDef(nextLevel) : null;
+    const newLevelDef = promote && nextLevel < MASTER_LEVEL ? getLevelDef(nextLevel) : null;
     return NextResponse.json({
       result: record,
-      leveledUp: passed,
+      leveledUp: promote,
+      confirmPending,
       isMaster: nextLevel >= MASTER_LEVEL,
       newLevel: nextLevel,
       newLevelDef,

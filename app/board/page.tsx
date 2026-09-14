@@ -81,8 +81,8 @@ export default function BoardPage() {
             <div className="card">
               <div className="columns">
                 {data.levels.map((l, i) => {
-                  // 마지막 단계(4단계) 칸에는 그 단계를 도전 중인 학생과 이미 마스터한
-                  // 학생을 함께 보여준다 (마스터를 별도 칸으로 분리하지 않고 합침).
+                  // 마지막 단계(마스터 단계) 칸에는 그 단계를 도전 중인 학생과 이미 완전
+                  // 마스터한 학생을 함께 보여준다 (완전 마스터를 별도 칸으로 분리하지 않고 합침).
                   const isLastLevel = i === data.levels.length - 1;
                   const members = data.students.filter(
                     (s) => s.level === l.level || (isLastLevel && s.level >= data.masterLevel)
@@ -93,7 +93,7 @@ export default function BoardPage() {
                         <span className={`badge lv${l.level}`}>{l.title}</span>
                       </h3>
                       <p className="center muted" style={{ fontSize: "0.8rem" }}>
-                        {isLastLevel ? `${l.range} (마스터 포함)` : l.range}
+                        {l.range}
                       </p>
                       <div className="members">
                         {members.length ? (

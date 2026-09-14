@@ -45,6 +45,7 @@ a:hover { text-decoration: underline; }
 }
 
 .wrap.narrow { max-width: 520px; }
+.wrap.wrap-wide { max-width: 1280px; }
 
 header.topbar {
   display: flex;
@@ -357,34 +358,73 @@ tr:last-child td { border-bottom: none; }
   color: var(--bad) !important;
 }
 
+/* 가로로 넓게, 세로로는 짧게 — 화면 너비가 되는 만큼 열이 자동으로 늘어난다
+   (문제 수가 많은 승급 시험일수록 이 방식이 스크롤을 크게 줄여준다). */
 .problem-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(212px, 1fr));
+  gap: 10px;
 }
-@media (max-width: 560px) {
-  .problem-grid { grid-template-columns: 1fr; }
+@media (max-width: 480px) {
+  .problem-grid { grid-template-columns: repeat(2, 1fr); }
 }
 .problem {
+  position: relative;
   background: #f8f6ff;
   border-radius: 12px;
-  padding: 14px;
+  padding: 12px 14px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 1.15rem;
+  gap: 8px;
+  font-size: 1rem;
   font-weight: 700;
 }
-.problem .idx { color: var(--muted); font-size: 0.8rem; font-weight: 600; width: 22px; }
+.problem .idx { color: var(--muted); font-size: 0.78rem; font-weight: 600; width: 18px; flex-shrink: 0; }
+.problem .eq { white-space: nowrap; }
 .problem input {
-  width: 70px;
+  width: 76px;
+  min-width: 0;
+  flex-shrink: 0;
   text-align: center;
   font-weight: 800;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
+  padding: 10px 4px;
 }
-.problem.correct { outline: 2px solid var(--good); }
-.problem.wrong { outline: 2px solid var(--bad); }
-.problem .ans-key { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+
+/* 채점 결과 — 빨간펜으로 채점한 것처럼: 맞으면 빨간 동그라미, 틀리면 빨간 사선. */
+.problem.correct,
+.problem.wrong {
+  background: #fff;
+  flex-wrap: wrap;
+}
+.problem.correct::after {
+  content: "";
+  position: absolute;
+  inset: -5px -8px;
+  border: 3px solid #e0324c;
+  border-radius: 50% / 42%;
+  pointer-events: none;
+}
+.problem.wrong::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    transparent calc(50% - 2px),
+    #e0324c calc(50% - 2px),
+    #e0324c calc(50% + 2px),
+    transparent calc(50% + 2px)
+  );
+  pointer-events: none;
+}
+.problem .ans-key {
+  width: 100%;
+  font-size: 0.8rem;
+  color: #e0324c;
+  font-weight: 700;
+}
 
 .result-banner {
   text-align: center;

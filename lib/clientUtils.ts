@@ -62,3 +62,55 @@ export function fmtDateOnly(dateStr: string | null | undefined): string {
   const [, m, d] = dateStr.split("-");
   return `${m}/${d}`;
 }
+
+// 시험 문제 그리드(.problem input)에서 마우스 없이 방향키만으로 자유롭게 칸을 옮겨다닐 수
+// 있게 하는 핸들러. 몇 열짜리 그리드인지 몰라도(화면 크기에 따라 열 수가 바뀌어도) 실제
+// 화면에 렌더링된 위치(위/아래/왼쪽/오른쪽에서 가장 가까운 칸)를 기준으로 이동한다.
+// Enter는 다음 칸으로 이동하고, 마지막 칸에서 Enter를 누르면 onLastEnter(보통 제출)를 부른다.
+export function handleProblemGridKeyDown(
+  e: { key: string; preventDefault: () => void },
+  index: number,
+  onLastEnter: () => void
+) {
+  const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(".problem input"));
+  const cur = inputs[index];
+
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const next = inputs[index + 1];
+    if (next) next.focus();
+    else onLastEnter();
+    return;
+  }
+  if (e.key === "ArrowRight") {
+    e.preventDefault();
+    inputs[index + 1]?.focus();
+    return;
+  }
+  if (e.key === "ArrowLeft") {
+    e.preventDefault();
+    inputs[index - 1]?.focus();
+    return;
+  }
+  if ((e.key === "ArrowDown" || e.key === "ArrowUp") && cur) {
+    e.preventDefault();
+    const curRect = cur.getBoundingClientRect();
+    const dir = e.key === "ArrowDown" ? 1 : -1;
+    const others = inputs
+      .map((el, idx) => ({ el, idx, rect: el.getBoundingClientRect() }))
+      .filter((c) => (dir === 1 ? c.rect.top > curRect.top + 4 : c.rect.top < curRect.top - 4));
+    if (!others.length) return;
+    const targetTop = dir === 1 ? Math.min(...others.map((c) => c.rect.top)) : Math.max(...others.map((c) => c.rect.top));
+    const rowCandidates = others.filter((c) => Math.abs(c.rect.top - targetTop) < 4);
+    let best = rowCandidates[0];
+    let bestDist = Math.abs(best.rect.left - curRect.left);
+    for (const c of rowCandidates) {
+      const d = Math.abs(c.rect.left - curRect.left);
+      if (d < bestDist) {
+        best = c;
+        bestDist = d;
+      }
+    }
+    best.el.focus();
+  }
+}

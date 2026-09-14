@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { api, ApiError } from "@/lib/clientUtils";
+import { api, ApiError, handleProblemGridKeyDown } from "@/lib/clientUtils";
 import { ACADEMY_NAME } from "@/lib/branding";
 import { playStartChime, playTick, playExplosion, playPassFanfare, playFailTone } from "@/lib/sound";
 
@@ -171,7 +171,7 @@ export default function TryExamPage() {
         </nav>
       </header>
 
-      <div className="wrap narrow">
+      <div className={`wrap${phase !== "pick" ? " wrap-wide" : " narrow"}`}>
         {phase === "pick" && (
           <div className="card">
             <h2 className="mt0">🧪 승급 시험 미리 체험해보기</h2>
@@ -210,26 +210,21 @@ export default function TryExamPage() {
               {problems.map((p, i) => (
                 <div className="problem" key={i}>
                   <span className="idx">{i + 1}</span>
-                  <span>
+                  <span className="eq">
                     {p.a} × {p.b} =
                   </span>
                   <input
-                    type="number"
+                    type="text"
                     inputMode="numeric"
+                    pattern="[0-9]*"
                     value={answers[i] ?? ""}
                     onChange={(e) => {
+                      const digitsOnly = e.target.value.replace(/[^0-9]/g, "").slice(0, 4);
                       const next = answers.slice();
-                      next[i] = e.target.value;
+                      next[i] = digitsOnly;
                       setAnswers(next);
                     }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const nextInput = document.querySelectorAll<HTMLInputElement>(".problem input")[i + 1];
-                        if (nextInput) nextInput.focus();
-                        else void submit(false);
-                      }
-                    }}
+                    onKeyDown={(e) => handleProblemGridKeyDown(e, i, () => void submit(false))}
                   />
                 </div>
               ))}
@@ -259,7 +254,7 @@ export default function TryExamPage() {
                 {result.detail.map((d, i) => (
                   <div className={`problem ${d.correct ? "correct" : "wrong"}`} key={i}>
                     <span className="idx">{i + 1}</span>
-                    <span>
+                    <span className="eq">
                       {d.a} × {d.b} = {d.answer}
                     </span>
                     {!d.correct && <span className="ans-key">내 답: {d.given === null ? "(공백)" : d.given}</span>}

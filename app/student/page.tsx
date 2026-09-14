@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, ApiError, levelBadgeClass, levelEmoji, fmtDate } from "@/lib/clientUtils";
+import { api, ApiError, levelBadgeClass, levelEmoji, fmtDate, handleProblemGridKeyDown } from "@/lib/clientUtils";
 import { ACADEMY_NAME } from "@/lib/branding";
 import { rewardLabel } from "@/lib/rewards";
 import { FINAL_LEVEL } from "@/lib/levels";
@@ -311,7 +311,7 @@ export default function StudentPage() {
         </nav>
       </header>
 
-      <div className="wrap">
+      <div className={`wrap${(view === "exam" || view === "result") && examState?.kind === "level" ? " wrap-wide" : ""}`}>
         {view === "dashboard" && summary && (
           <Dashboard
             summary={summary}
@@ -348,26 +348,21 @@ export default function StudentPage() {
               {examState.problems.map((p, i) => (
                 <div className="problem" key={i}>
                   <span className="idx">{i + 1}</span>
-                  <span>
+                  <span className="eq">
                     {p.a} × {p.b} =
                   </span>
                   <input
-                    type="number"
+                    type="text"
                     inputMode="numeric"
+                    pattern="[0-9]*"
                     value={answers[i] ?? ""}
                     onChange={(e) => {
+                      const digitsOnly = e.target.value.replace(/[^0-9]/g, "").slice(0, 4);
                       const next = answers.slice();
-                      next[i] = e.target.value;
+                      next[i] = digitsOnly;
                       setAnswers(next);
                     }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const nextInput = document.querySelectorAll<HTMLInputElement>(".problem input")[i + 1];
-                        if (nextInput) nextInput.focus();
-                        else submitExam(false);
-                      }
-                    }}
+                    onKeyDown={(e) => handleProblemGridKeyDown(e, i, () => submitExam(false))}
                   />
                 </div>
               ))}
@@ -687,7 +682,7 @@ function ResultView({ data, timedOut, onDone }: { data: SubmitResponse; timedOut
           {detail.map((d, i) => (
             <div className={`problem ${d.correct ? "correct" : "wrong"}`} key={i}>
               <span className="idx">{i + 1}</span>
-              <span>
+              <span className="eq">
                 {d.a} × {d.b} = {d.answer}
               </span>
               {!d.correct && <span className="ans-key">내 답: {d.given === null ? "(공백)" : d.given}</span>}

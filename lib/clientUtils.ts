@@ -41,12 +41,14 @@ export function levelBadgeClass(level: number, masterLevel: number): string {
   return "lv" + Math.min(level, 5);
 }
 
-const LEVEL_EMOJIS = ["🌱", "🌿", "🌳", "🍀", "👑"]; // 5단계(마스터 단계)부터 왕관이 등장한다
+// 동메달 → 은메달 → 금메달 → 실버 왕관(4단계) → 골드 왕관(마스터 단계).
+const LEVEL_EMOJIS = ["🥉", "🥈", "🥇", "🥈👑", "🥇👑"];
 
-// 현재 단계를 눈에 띄게 보여주는 귀여운 이모지. 마스터 단계(5단계)부터는 왕관으로 표시한다.
+// 현재 단계를 눈에 띄게 보여주는 메달/왕관 이모지. 완전 마스터(level >= masterLevel)도
+// 마스터 단계와 같은 골드 왕관으로 표시한다.
 export function levelEmoji(level: number, masterLevel: number): string {
-  if (level >= masterLevel) return "👑";
-  return LEVEL_EMOJIS[level - 1] ?? "🌱";
+  if (level >= masterLevel) return LEVEL_EMOJIS[LEVEL_EMOJIS.length - 1];
+  return LEVEL_EMOJIS[level - 1] ?? LEVEL_EMOJIS[0];
 }
 
 export function fmtDate(ts: string | number | Date | null | undefined): string {

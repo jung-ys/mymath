@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api } from "@/lib/clientUtils";
+import { api, levelEmoji } from "@/lib/clientUtils";
 import { ACADEMY_NAME } from "@/lib/branding";
 
 interface LevelDef {
@@ -101,8 +101,7 @@ export default function BoardPage() {
                             const isMaster = s.level >= data.masterLevel;
                             return (
                               <div className="member-chip" key={s.id}>
-                                {isMaster ? "👑 " : ""}
-                                {s.name}
+                                {levelEmoji(s.level, data.masterLevel)} {s.name}
                                 <br />
                                 <span className="muted" style={{ fontWeight: 600, fontSize: "0.75rem" }}>
                                   {isMaster ? "마스터" : `🔥${s.streak}일`}

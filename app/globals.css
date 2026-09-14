@@ -107,6 +107,14 @@ header.topbar nav a:hover, header.topbar nav button.link:hover { color: var(--br
 
 .card h2 { margin-top: 0; }
 
+/* 카드 안의 소제목(h2/h3)에 밑줄을 그어 섹션 구분을 분명하게 한다 */
+.card h2, .card h3 {
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 2px solid var(--brand-light);
+}
+.card h3 { font-size: 0.98rem; color: var(--brand-dark); }
+
 .hero {
   text-align: center;
   padding: 44px 20px 36px;
@@ -272,15 +280,26 @@ button {
 
 table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.92rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
 }
 th, td {
   text-align: left;
-  padding: 10px 12px;
+  padding: 11px 14px;
   border-bottom: 1px solid var(--line);
 }
-th { color: var(--muted); font-weight: 600; font-size: 0.82rem; }
+th {
+  color: var(--brand-dark);
+  font-weight: 700;
+  font-size: 0.8rem;
+  background: var(--brand-light);
+}
+tbody tr:nth-child(even) { background: #faf9ff; }
+tbody tr:hover { background: var(--brand-light); }
 tr:last-child td { border-bottom: none; }
 
 .pill {

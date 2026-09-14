@@ -1,20 +1,25 @@
-// 구구단 2~19단을 4단계로 구성.
+// 구구단을 4단계로 구성한다. 표준 구구단(2~9단 × 1~9)을 넘어서, 단(段)과 배수 양쪽을
+// 두 구간으로 나눠 4개의 "사분면(quadrant)"으로 단계를 정의한다.
+//
+//            배수 1~10          배수 11~20
+//   단 2~10    1단계               3단계
+//   단 11~19   2단계               4단계
+//
 // Student.level 은 "현재 도전 중인 단계"를 의미한다 (1~4).
 // 4단계 승급 시험까지 통과하면 level 은 5(마스터)가 된다.
 //
 // 승급 시험 문제 구성 방식
-// - perTableQuota: 그 단계에 속한 단(段) 하나당 출제할 문항 수 (최대 9 = ×1~9 전부)
-// - hardMultipliers: 그 단에서 아이들이 특히 많이 틀리는 곱셈(예: 6~9단 서로 곱하기)을
-//   출제 시 우선적으로 반드시 포함시킨다. perTableQuota 안에서 나머지는 무작위로 채운다.
-// - 10~19단은 perTableQuota=9 로 두어 사실상 그 단의 ×1~9 전 범위를 빠짐없이 출제한다
-//   (단 수가 적어 전 범위 출제가 가능하고, 일부만 맞혀서 통과하는 문제를 방지한다).
+// - perTableQuota: 그 단계에 속한 단(段) 하나당 출제할 문항 수 (multRange 폭 안에서 무작위 선택).
+//   전체 배수 폭(10개)을 다 내면 한 단계당 90문제로 시험이 지나치게 길어지므로 일부만 뽑는다.
+// - 2단계부터는 자기 사분면 문제에 더해, 그 아래 모든 단계의 사분면에서 뽑은 문제를
+//   CUMULATIVE_EXTRA_COUNT개 추가로 출제해 이전에 배운 내용을 계속 누적해서 확인한다.
 
 export interface LevelDef {
   level: number;
   title: string;
   range: string;
-  tables: number[];
-  hardMultipliers?: Record<number, number[]>;
+  tables: number[]; // 이 단계에 속한 단(段) 목록, 예: [2,3,...,10]
+  multRange: [number, number]; // 이 단계에서 출제하는 배수(곱하는 수) 구간, 예: [1,10]
   perTableQuota: number;
   secPerQuestion: number;
   examConfig: ExamConfig;
@@ -33,57 +38,67 @@ export interface Problem {
   answer: number;
 }
 
+export type Pair = [number, number];
+
+function rangeArray(min: number, max: number): number[] {
+  const out: number[] = [];
+  for (let n = min; n <= max; n++) out.push(n);
+  return out;
+}
+
 const RAW_LEVELS: Omit<LevelDef, "examConfig">[] = [
   {
     level: 1,
     title: "1단계",
-    range: "2~9단",
-    tables: [2, 3, 4, 5, 6, 7, 8, 9],
-    hardMultipliers: {
-      6: [7, 8, 9],
-      7: [6, 8, 9],
-      8: [6, 7, 9],
-      9: [6, 7, 8],
-    },
+    range: "2~10단 · ×1~10배",
+    tables: rangeArray(2, 10),
+    multRange: [1, 10],
     perTableQuota: 6,
-    secPerQuestion: 8,
+    secPerQuestion: 6,
   },
   {
     level: 2,
     title: "2단계",
-    range: "10~13단",
-    tables: [10, 11, 12, 13],
-    perTableQuota: 9,
-    secPerQuestion: 12,
+    range: "11~19단 · ×1~10배",
+    tables: rangeArray(11, 19),
+    multRange: [1, 10],
+    perTableQuota: 6,
+    secPerQuestion: 7,
   },
   {
     level: 3,
     title: "3단계",
-    range: "14~16단",
-    tables: [14, 15, 16],
-    perTableQuota: 9,
-    secPerQuestion: 13,
+    range: "2~10단 · ×11~20배",
+    tables: rangeArray(2, 10),
+    multRange: [11, 20],
+    perTableQuota: 6,
+    secPerQuestion: 7,
   },
   {
     level: 4,
     title: "4단계",
-    range: "17~19단",
-    tables: [17, 18, 19],
-    perTableQuota: 9,
-    secPerQuestion: 14,
+    range: "11~19단 · ×11~20배",
+    tables: rangeArray(11, 19),
+    multRange: [11, 20],
+    perTableQuota: 6,
+    secPerQuestion: 8,
   },
 ];
 
 const PASS_RATIO = 0.9; // 90% 이상 정답이어야 승급
 const GRACE_SEC = 15; // 시간 초과 판정 여유
 
-// 2단계부터는 승급 시험이 "누적"이 된다: 그 단계 자신의 단(段)은 근접 전 범위로 출제하고,
+// 2단계부터는 승급 시험이 "누적"이 된다: 그 단계 자신의 사분면은 quota만큼 출제하고,
 // 추가로 그 아래 모든 단계에서 뽑은 문제를 CUMULATIVE_EXTRA_COUNT개 더 얹는다.
-// (1단계는 아래 단계가 없으므로 그대로 자기 범위만 출제한다.)
+// (1단계는 아래 단계가 없으므로 그대로 자기 사분면만 출제한다.)
 export const CUMULATIVE_EXTRA_COUNT = 20;
 
+function multSpan(multRange: [number, number]): number {
+  return multRange[1] - multRange[0] + 1;
+}
+
 function computeExamConfig(levelDef: Omit<LevelDef, "examConfig">): ExamConfig {
-  const quota = Math.min(levelDef.perTableQuota || 9, 9);
+  const quota = Math.min(levelDef.perTableQuota, multSpan(levelDef.multRange));
   const ownCount = levelDef.tables.length * quota;
   const extraCount = levelDef.level > 1 ? CUMULATIVE_EXTRA_COUNT : 0;
   const questionCount = ownCount + extraCount;
@@ -95,6 +110,40 @@ function computeExamConfig(levelDef: Omit<LevelDef, "examConfig">): ExamConfig {
 export const LEVELS: LevelDef[] = RAW_LEVELS.map((l) => ({ ...l, examConfig: computeExamConfig(l) }));
 
 export const MASTER_LEVEL = LEVELS.length + 1; // 5 = 전 단계 마스터
+
+// 한 단계(사분면)에 속한 모든 (단, 배수) 조합을 전부 나열한다.
+export function pairsForLevel(levelDef: Pick<LevelDef, "tables" | "multRange">): Pair[] {
+  const [lo, hi] = levelDef.multRange;
+  const pairs: Pair[] = [];
+  levelDef.tables.forEach((t) => {
+    for (let m = lo; m <= hi; m++) pairs.push([t, m]);
+  });
+  return pairs;
+}
+
+// 학생이 지금 도전 중인 단계까지의 모든 사분면을 합친 (단, 배수) 조합 (오늘의 테스트 기본 범위).
+// 마스터(모든 단계 통과)면 4개 사분면 전체를 합친다.
+export function cumulativePairsForLevel(level: number): Pair[] {
+  const upTo = level >= MASTER_LEVEL ? LEVELS : LEVELS.filter((l) => l.level <= level);
+  return upTo.flatMap(pairsForLevel);
+}
+
+// 위 pairs에서 중복 없는 단(段) 목록만 뽑아낸다 — 문항 수 자동 산정 등 "몇 개 단을 배웠는지"
+// 기준의 계산에 쓴다 (배수 구간 정보는 필요 없는 곳).
+export function tablesForStudent(level: number): number[] {
+  const set = new Set(cumulativePairsForLevel(level).map(([a]) => a));
+  return Array.from(set).sort((a, b) => a - b);
+}
+
+// 관리자가 학생별로 특정 단(段)만 직접 골라 지정했을 때 쓰는 조합 — 단계 구분과 무관하게
+// 배수 1~20 전체 범위로 연습 문제를 만든다 (지정한 단을 폭넓게 반복 연습시키기 위함).
+export function pairsForTables(tables: number[], multMin = 1, multMax = 20): Pair[] {
+  const pairs: Pair[] = [];
+  tables.forEach((t) => {
+    for (let m = multMin; m <= multMax; m++) pairs.push([t, m]);
+  });
+  return pairs;
+}
 
 // 승급 시험 "자격 기준": 오늘의 테스트를 최근 것부터 거슬러 올라가며 정답률이
 // requiredAccuracy(100%) 인 것이 연속으로 requiredStreak(10)회 이어져야 한다.
@@ -122,21 +171,6 @@ export function getLevelDef(level: number): LevelDef | null {
   return LEVELS.find((l) => l.level === level) || null;
 }
 
-export function allTables(): number[] {
-  const out: number[] = [];
-  for (let t = 2; t <= 19; t++) out.push(t);
-  return out;
-}
-
-// 학생이 오늘의 테스트에 사용할 단(段) 범위: 도전 중인 단계 + 이미 통과한 단계 전체 복습
-export function tablesForStudent(level: number): number[] {
-  if (level >= MASTER_LEVEL) return allTables();
-  const upTo = LEVELS.filter((l) => l.level <= level);
-  const set = new Set<number>();
-  upTo.forEach((l) => l.tables.forEach((t) => set.add(t)));
-  return Array.from(set);
-}
-
 export type ProblemOrder = "random" | "sequential" | "reverse";
 
 // 출제 순서: 랜덤(기본) / 순서대로(단 오름차순 → 같은 단은 곱수 오름차순) / 거꾸로(그 반대).
@@ -155,17 +189,13 @@ export function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-// tables 배열과 문항 수를 받아 문제 목록 생성 (오늘의 테스트용, 무작위 샘플링).
+// (단, 배수) 조합 목록과 문항 수를 받아 문제 목록 생성 (오늘의 테스트용, 무작위 샘플링).
 // allowDuplicates가 false(기본)면 가능한 조합 수를 넘는 문항 수는 조합 수만큼으로 잘라낸다.
 // allowDuplicates가 true면 문항 수를 정확히 맞추기 위해 같은 문제가 반복될 수 있다.
-export function generateProblems(tables: number[], count: number, allowDuplicates = false): Problem[] {
-  const pairs: [number, number][] = [];
-  tables.forEach((t) => {
-    for (let m = 1; m <= 9; m++) pairs.push([t, m]);
-  });
+export function generateProblems(pairs: Pair[], count: number, allowDuplicates = false): Problem[] {
   if (pairs.length === 0) return [];
   const shuffled = shuffle(pairs);
-  let chosen: [number, number][];
+  let chosen: Pair[];
   if (count <= shuffled.length) {
     chosen = shuffled.slice(0, count);
   } else if (allowDuplicates) {
@@ -194,40 +224,23 @@ export function timeLimitForDailyCount(count: number): number {
   return Math.round(count * DAILY_SEC_PER_QUESTION);
 }
 
-// 승급 시험용 문제 생성: 단마다 hardMultipliers(자주 틀리는 곱셈)를 반드시 포함하고,
-// perTableQuota 만큼 채운다. quota가 9면 그 단의 ×1~9 전체를 빠짐없이 출제한다.
-// 2단계부터는 여기에 더해 그 아래 모든 단계의 단에서 CUMULATIVE_EXTRA_COUNT문제를 추가로
-// 무작위 출제해 이전에 배운 내용을 계속 누적해서 확인한다.
+// 승급 시험용 문제 생성: 자기 사분면(단 × 배수구간)에서 단마다 perTableQuota개씩 무작위로
+// 뽑고, 2단계부터는 그 아래 모든 단계 사분면에서 CUMULATIVE_EXTRA_COUNT문제를 추가로 뽑아
+// 이전에 배운 내용을 계속 누적해서 확인한다.
 export function generateLevelExamProblems(levelDef: LevelDef): Problem[] {
-  const hard = levelDef.hardMultipliers || {};
-  const quota = Math.min(levelDef.perTableQuota || 9, 9);
+  const [lo, hi] = levelDef.multRange;
+  const multPool = rangeArray(lo, hi);
+  const quota = Math.min(levelDef.perTableQuota, multPool.length);
   const problems: Problem[] = [];
 
   levelDef.tables.forEach((t) => {
-    const musts = (hard[t] || []).filter((m) => m >= 1 && m <= 9);
-    const chosen: number[] = [];
-    const chosenSet = new Set<number>();
-    musts.forEach((m) => {
-      if (chosen.length < quota && !chosenSet.has(m)) {
-        chosen.push(m);
-        chosenSet.add(m);
-      }
-    });
-    const restPool = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9].filter((m) => !chosenSet.has(m)));
-    for (const m of restPool) {
-      if (chosen.length >= quota) break;
-      chosen.push(m);
-    }
-    chosen.forEach((m) => problems.push({ a: t, b: m, answer: t * m }));
+    const chosenMults = shuffle(multPool).slice(0, quota);
+    chosenMults.forEach((m) => problems.push({ a: t, b: m, answer: t * m }));
   });
 
   if (levelDef.level > 1) {
-    const lowerTables = LEVELS.filter((l) => l.level < levelDef.level).flatMap((l) => l.tables);
-    const pool: [number, number][] = [];
-    lowerTables.forEach((t) => {
-      for (let m = 1; m <= 9; m++) pool.push([t, m]);
-    });
-    const extra = shuffle(pool).slice(0, Math.min(CUMULATIVE_EXTRA_COUNT, pool.length));
+    const lowerPairs = LEVELS.filter((l) => l.level < levelDef.level).flatMap(pairsForLevel);
+    const extra = shuffle(lowerPairs).slice(0, Math.min(CUMULATIVE_EXTRA_COUNT, lowerPairs.length));
     extra.forEach(([a, b]) => problems.push({ a, b, answer: a * b }));
   }
 

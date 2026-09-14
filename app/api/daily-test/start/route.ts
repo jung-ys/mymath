@@ -3,6 +3,8 @@ import { getAuthedStudent } from "@/lib/apiAuth";
 import { todayStats } from "@/lib/studentView";
 import {
   tablesForStudent,
+  cumulativePairsForLevel,
+  pairsForTables,
   generateProblems,
   dailyTestConfigFor,
   dailyTestConfigForCustom,
@@ -24,6 +26,9 @@ export async function POST(req: NextRequest) {
 
   const hasCustom = student.customTables.length > 0;
   const tables = hasCustom ? student.customTables : tablesForStudent(student.level);
+  // hasCustom: 관리자가 지정한 단(段)에 배수 1~20 전체를 적용. 아니면 학생이 도전 중인
+  // 단계까지의 모든 사분면(단×배수구간)을 합친 조합을 쓴다.
+  const pairs = hasCustom ? pairsForTables(student.customTables) : cumulativePairsForLevel(student.level);
   const baseConfig = hasCustom ? dailyTestConfigForCustom(tables, student.customCount) : dailyTestConfigFor(tables);
 
   // 지금까지 틀린 채로 남아있는 문제는(어제 이전 오답 포함) 반드시 오늘의 테스트에 포함시킨다.
@@ -34,14 +39,12 @@ export async function POST(req: NextRequest) {
   const remaining = Math.max(0, baseConfig.questionCount - forced.length);
   let randomPart: ReturnType<typeof generateProblems>;
   if (student.allowDuplicates) {
-    randomPart = generateProblems(tables, remaining, true);
+    randomPart = generateProblems(pairs, remaining, true);
   } else {
     // 강제 포함된 오답과 겹치는 조합은 제외한 전체 풀에서 뽑아야 부족해지지 않는다
     // (겹치는 것만 나중에 걸러내면 그만큼 문항 수가 모자라질 수 있다).
-    const fullPool = generateProblems(tables, tables.length * 9, false).filter(
-      (p) => !forcedKeys.has(`${p.a}x${p.b}`)
-    );
-    randomPart = fullPool.slice(0, remaining);
+    const availablePairs = pairs.filter(([a, b]) => !forcedKeys.has(`${a}x${b}`));
+    randomPart = generateProblems(availablePairs, remaining, false);
   }
 
   const order = (["random", "sequential", "reverse"] as const).includes(student.problemOrder as ProblemOrder)

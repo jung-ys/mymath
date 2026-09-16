@@ -83,7 +83,7 @@ export default function OnboardingPage() {
         <div className="hero" style={{ padding: "28px 0 20px" }}>
           <p className="academy-name">{ACADEMY_NAME}</p>
           <h1 style={{ fontSize: "1.6rem" }}>{data.studentName} 학생 학부모님, 안녕하세요 👋</h1>
-          <p className="muted">아래 4단계만 따라 하시면 집에서도 바로 학습을 시작할 수 있어요.</p>
+          <p className="muted">아래 {ONBOARDING_STEPS.length}단계만 따라 하시면 집에서도 바로 학습을 시작할 수 있어요.</p>
         </div>
 
         <div className="card">
@@ -117,15 +117,12 @@ export default function OnboardingPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ width: "100%", textAlign: "center" }}
-                    onClick={() => complete(1)}
                   >
-                    사이트 열어보기
+                    사이트 열고 로그인하기
                   </a>
-                  <div className="callout" style={{ marginTop: 12, fontSize: "0.85rem" }}>
-                    ⚠️ 카카오톡 안에서 위 버튼을 눌러 열었는데 아래 ②단계의 점 3개(⋮) 메뉴가 안
-                    보인다면, 화면 아래쪽의 &lsquo;다른 브라우저로 열기&rsquo; 또는 공유 버튼을 눌러
-                    크롬(또는 사파리)으로 열어주세요.
-                  </div>
+                  <p className="muted" style={{ fontSize: "0.8rem", marginTop: 8, marginBottom: 0 }}>
+                    로그인에 성공하면 이 단계는 자동으로 완료 처리돼요. 아래 버튼은 누르지 않아도 괜찮아요.
+                  </p>
                 </>
               )}
 
@@ -134,7 +131,7 @@ export default function OnboardingPage() {
                   <div>
                     <strong>📱 안드로이드(갤럭시 등, 크롬 브라우저)</strong>
                     <ol style={{ margin: "6px 0 0", paddingLeft: 20, color: "var(--muted)", fontSize: "0.9rem" }}>
-                      <li>크롬으로 사이트에 접속한 상태에서</li>
+                      <li>①단계에서 로그인한 화면에서</li>
                       <li>화면 오른쪽 위 점 3개(⋮) 메뉴 누르기</li>
                       <li>&quot;홈 화면에 추가&quot; 선택 → 추가</li>
                     </ol>
@@ -142,7 +139,7 @@ export default function OnboardingPage() {
                   <div>
                     <strong>🍎 아이폰(사파리 브라우저)</strong>
                     <ol style={{ margin: "6px 0 0", paddingLeft: 20, color: "var(--muted)", fontSize: "0.9rem" }}>
-                      <li>사파리로 사이트에 접속한 상태에서</li>
+                      <li>①단계에서 로그인한 화면에서</li>
                       <li>하단 공유 버튼(□ 위에 화살표) 누르기</li>
                       <li>&quot;홈 화면에 추가&quot; 선택 → 추가</li>
                     </ol>
@@ -151,17 +148,6 @@ export default function OnboardingPage() {
               )}
 
               {s.step === 3 && (
-                <>
-                  <a className="btn secondary" href={loginUrl} target="_blank" rel="noopener noreferrer" style={{ width: "100%", textAlign: "center" }}>
-                    로그인하러 가기
-                  </a>
-                  <p className="muted" style={{ fontSize: "0.8rem", marginTop: 8 }}>
-                    로그인에 성공하면 이 단계는 자동으로 완료 처리돼요. 아래 버튼은 누르지 않아도 괜찮아요.
-                  </p>
-                </>
-              )}
-
-              {s.step === 4 && (
                 <p className="muted" style={{ fontSize: "0.8rem", marginBottom: 0 }}>
                   테스트를 한 번 제출하면 이 단계는 자동으로 완료 처리돼요. 아래 버튼은 누르지 않아도 괜찮아요.
                 </p>

@@ -25,6 +25,6 @@ export async function POST(req: NextRequest) {
     path: "/",
     maxAge: STUDENT_COOKIE_MAX_AGE,
   });
-  await markOnboardingStepDone(student.id, 3);
+  await markOnboardingStepDone(student.id, 1);
   return res;
 }

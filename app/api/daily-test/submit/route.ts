@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         data: { streak: nextStreak, lastDailyTestDate: today },
       }),
     ]);
-    await markOnboardingStepDone(student.id, 4);
+    await markOnboardingStepDone(student.id, 3);
     return NextResponse.json({ result: record, streak: nextStreak });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {

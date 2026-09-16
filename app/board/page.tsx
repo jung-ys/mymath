@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, levelEmoji } from "@/lib/clientUtils";
+import { api, ApiError, levelEmoji } from "@/lib/clientUtils";
 import { ACADEMY_NAME } from "@/lib/branding";
 
 interface LevelDef {
@@ -33,6 +33,7 @@ interface BoardData {
 export default function BoardPage() {
   const [data, setData] = useState<BoardData | null>(null);
   const [error, setError] = useState("");
+  const [needsAdmin, setNeedsAdmin] = useState(false);
 
   useEffect(() => {
     let stopped = false;
@@ -40,8 +41,10 @@ export default function BoardPage() {
       try {
         const d = await api<BoardData>("/api/board");
         if (!stopped) setData(d);
-      } catch {
-        if (!stopped) setError("불러오지 못했습니다.");
+      } catch (ex) {
+        if (stopped) return;
+        if (ex instanceof ApiError && ex.status === 401) setNeedsAdmin(true);
+        else setError("불러오지 못했습니다.");
       }
     }
     load();
@@ -51,6 +54,23 @@ export default function BoardPage() {
       clearInterval(id);
     };
   }, []);
+
+  if (needsAdmin) {
+    return (
+      <div className="wrap narrow">
+        <div className="card center" style={{ marginTop: 60 }}>
+          <h2 className="mt0">🔒 선생님 로그인이 필요합니다</h2>
+          <p className="muted">
+            게시판은 전체 학생 명단과 레벨이 보이는 화면이라, 선생님(관리자)으로 로그인한
+            브라우저에서만 볼 수 있어요. 교실 모니터에는 한 번만 로그인해두면 계속 떠 있어요.
+          </p>
+          <Link href="/admin" className="btn" style={{ display: "inline-block", marginTop: 12 }}>
+            선생님 로그인하러 가기
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

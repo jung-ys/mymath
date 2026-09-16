@@ -703,8 +703,8 @@ function OnboardingStatusCard() {
       <h2 className="mt0">📱 학부모 시작 안내 (온보딩) 현황</h2>
       <p className="muted" style={{ fontSize: "0.85rem" }}>
         학생마다 &ldquo;링크 복사&rdquo;를 눌러 그 학부모님께 카카오톡으로 보내주세요. 부모님이
-        접속 → 홈 화면 추가 → 로그인 → 오늘의 테스트까지 4단계를 하나씩 완료 체크하면 아래 표에
-        바로 반영됩니다.
+        접속·로그인 → 홈 화면 추가 → 오늘의 테스트까지 {ONBOARDING_STEPS.length}단계를 진행하면
+        아래 표에 바로 반영됩니다(①·③단계는 자동 체크, ②단계만 부모님이 직접 체크).
       </p>
       <div style={{ overflowX: "auto" }}>
         <table>

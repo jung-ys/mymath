@@ -59,7 +59,6 @@ function LoginPageInner() {
           <div className="brand-academy">{ACADEMY_NAME}</div>
         </div>
         <nav>
-          <Link href="/board">레벨업 게시판</Link>
           <Link href="/admin">선생님 로그인</Link>
         </nav>
       </header>

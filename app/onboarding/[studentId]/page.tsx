@@ -18,11 +18,30 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
   const [savingStep, setSavingStep] = useState<number | null>(null);
   const siteUrl = typeof window !== "undefined" ? `${window.location.origin}/` : "/";
+  // 이 기기에 다른 학생(테스트 계정 등)이 로그인된 상태로 남아있어도, 온보딩 링크로 열 때는
+  // 항상 로그인 화면부터 보여주도록 강제한다.
+  const loginUrl = `${siteUrl}?login=1`;
 
-  useEffect(() => {
+  function load() {
     api<OnboardingData>(`/api/onboarding/${studentId}`)
       .then(setData)
       .catch((ex) => setError(ex instanceof ApiError ? ex.message : "불러오지 못했습니다."));
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId]);
+
+  useEffect(() => {
+    // 로그인/테스트를 다른 탭에서 마치고 이 화면으로 돌아왔을 때, 자동으로 완료 처리된
+    // 단계가 있으면 새로고침 없이도 바로 반영되도록 한다.
+    function onFocus() {
+      load();
+    }
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId]);
 
   async function complete(step: number) {
@@ -91,9 +110,23 @@ export default function OnboardingPage() {
               <p style={{ color: "var(--muted)" }}>{s.description}</p>
 
               {s.step === 1 && (
-                <a className="btn" href={siteUrl || "/"} target="_blank" rel="noopener noreferrer" style={{ width: "100%", textAlign: "center" }}>
-                  사이트 열어보기
-                </a>
+                <>
+                  <a
+                    className="btn"
+                    href={loginUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ width: "100%", textAlign: "center" }}
+                    onClick={() => complete(1)}
+                  >
+                    사이트 열어보기
+                  </a>
+                  <div className="callout" style={{ marginTop: 12, fontSize: "0.85rem" }}>
+                    ⚠️ 카카오톡 안에서 위 버튼을 눌러 열었는데 아래 ②단계의 점 3개(⋮) 메뉴가 안
+                    보인다면, 화면 아래쪽의 &lsquo;다른 브라우저로 열기&rsquo; 또는 공유 버튼을 눌러
+                    크롬(또는 사파리)으로 열어주세요.
+                  </div>
+                </>
               )}
 
               {s.step === 2 && (
@@ -118,9 +151,20 @@ export default function OnboardingPage() {
               )}
 
               {s.step === 3 && (
-                <a className="btn secondary" href={siteUrl || "/"} target="_blank" rel="noopener noreferrer" style={{ width: "100%", textAlign: "center" }}>
-                  로그인하러 가기
-                </a>
+                <>
+                  <a className="btn secondary" href={loginUrl} target="_blank" rel="noopener noreferrer" style={{ width: "100%", textAlign: "center" }}>
+                    로그인하러 가기
+                  </a>
+                  <p className="muted" style={{ fontSize: "0.8rem", marginTop: 8 }}>
+                    로그인에 성공하면 이 단계는 자동으로 완료 처리돼요. 아래 버튼은 누르지 않아도 괜찮아요.
+                  </p>
+                </>
+              )}
+
+              {s.step === 4 && (
+                <p className="muted" style={{ fontSize: "0.8rem", marginBottom: 0 }}>
+                  테스트를 한 번 제출하면 이 단계는 자동으로 완료 처리돼요. 아래 버튼은 누르지 않아도 괜찮아요.
+                </p>
               )}
 
               <button

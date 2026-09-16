@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifySecret, makeStudentToken, STUDENT_COOKIE, STUDENT_COOKIE_MAX_AGE } from "@/lib/auth";
 import { publicStudent } from "@/lib/studentView";
+import { markOnboardingStepDone } from "@/lib/onboardingServer";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -24,5 +25,6 @@ export async function POST(req: NextRequest) {
     path: "/",
     maxAge: STUDENT_COOKIE_MAX_AGE,
   });
+  await markOnboardingStepDone(student.id, 3);
   return res;
 }

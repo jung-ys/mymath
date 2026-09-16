@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthedStudent } from "@/lib/apiAuth";
 import { decryptExamToken } from "@/lib/examToken";
 import { todayKST } from "@/lib/levels";
+import { markOnboardingStepDone } from "@/lib/onboardingServer";
 
 export async function POST(req: NextRequest) {
   const student = await getAuthedStudent(req);
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
         data: { streak: nextStreak, lastDailyTestDate: today },
       }),
     ]);
+    await markOnboardingStepDone(student.id, 4);
     return NextResponse.json({ result: record, streak: nextStreak });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {

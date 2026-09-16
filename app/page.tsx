@@ -1,26 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/clientUtils";
 import { ACADEMY_NAME } from "@/lib/branding";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="loading">불러오는 중...</div>}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // 학부모 온보딩 링크(?login=1)로 들어온 경우: 같은 기기에 다른 학생의 로그인이
+  // 남아있어도 그대로 넘어가지 말고 항상 로그인 화면부터 보여준다. (예: 선생님이 테스트
+  // 계정으로 로그인해둔 채 부모에게 링크를 전달하면, 자동으로 그 계정으로 들어가버리는 문제 방지)
+  const forceLogin = searchParams.get("login") === "1";
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
-  const [checking, setChecking] = useState(true);
+  const [checking, setChecking] = useState(!forceLogin);
 
   useEffect(() => {
+    if (forceLogin) return;
     api<{ authed: boolean; type?: string }>("/api/me")
       .then((me) => {
         if (me.authed && me.type === "student") router.replace("/student");
         else setChecking(false);
       })
       .catch(() => setChecking(false));
-  }, [router]);
+  }, [router, forceLogin]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

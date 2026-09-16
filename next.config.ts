@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
       { source: "/report", headers: noStore },
       { source: "/admin", headers: noStore },
       { source: "/admin/:path*", headers: noStore },
+      { source: "/onboarding/:path*", headers: noStore },
     ];
   },
 };

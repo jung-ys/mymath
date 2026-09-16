@@ -5,6 +5,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { api, ApiError, levelBadgeClass, fmtDate, fmtDateOnly } from "@/lib/clientUtils";
 import type { studentSummary } from "@/lib/studentView";
 import { ACADEMY_NAME } from "@/lib/branding";
+import { ONBOARDING_STEPS } from "@/lib/onboarding";
 
 type StudentDetailData = Awaited<ReturnType<typeof studentSummary>>;
 
@@ -427,6 +428,8 @@ function AdminDashboard() {
 
       <LevelTimeSettingsCard />
 
+      <OnboardingStatusCard />
+
       <div className="card">
         <h2 className="mt0">🎁 레벨업 보상 체크리스트</h2>
         <p className="muted" style={{ fontSize: "0.85rem" }}>
@@ -649,6 +652,99 @@ function LevelTimeSettingsCard() {
           ))}
         </tbody>
       </table>
+      {err && <div className="error-box show">{err}</div>}
+    </div>
+  );
+}
+
+interface OnboardingStudentRow {
+  id: string;
+  name: string;
+  school: string | null;
+  grade: string | null;
+  completedSteps: number[];
+}
+
+function OnboardingStatusCard() {
+  const [rows, setRows] = useState<OnboardingStudentRow[] | null>(null);
+  const [err, setErr] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await api<{ students: OnboardingStudentRow[] }>("/api/admin/onboarding");
+      setRows(data.students);
+    } catch (ex) {
+      setErr(ex instanceof ApiError ? ex.message : "불러오지 못했습니다.");
+    }
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      await load();
+    })();
+  }, [load]);
+
+  async function copyLink(id: string) {
+    const url = `${window.location.origin}/onboarding/${id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 2000);
+    } catch {
+      prompt("아래 주소를 복사해서 카카오톡으로 보내주세요:", url);
+    }
+  }
+
+  if (!rows) return null;
+
+  return (
+    <div className="card">
+      <h2 className="mt0">📱 학부모 시작 안내 (온보딩) 현황</h2>
+      <p className="muted" style={{ fontSize: "0.85rem" }}>
+        학생마다 &ldquo;링크 복사&rdquo;를 눌러 그 학부모님께 카카오톡으로 보내주세요. 부모님이
+        접속 → 홈 화면 추가 → 로그인 → 오늘의 테스트까지 4단계를 하나씩 완료 체크하면 아래 표에
+        바로 반영됩니다.
+      </p>
+      <div style={{ overflowX: "auto" }}>
+        <table>
+          <thead>
+            <tr>
+              <th>이름</th>
+              {ONBOARDING_STEPS.map((s) => (
+                <th key={s.step} style={{ textAlign: "center" }}>
+                  {s.step}
+                </th>
+              ))}
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td>
+                  {r.name}
+                  {(r.school || r.grade) && (
+                    <div className="muted" style={{ fontSize: "0.75rem" }}>
+                      {[r.school, r.grade].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
+                </td>
+                {ONBOARDING_STEPS.map((s) => (
+                  <td key={s.step} style={{ textAlign: "center" }}>
+                    {r.completedSteps.includes(s.step) ? "✅" : "—"}
+                  </td>
+                ))}
+                <td>
+                  <button className="btn small ghost" onClick={() => copyLink(r.id)}>
+                    {copiedId === r.id ? "복사됨!" : "🔗 링크 복사"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {err && <div className="error-box show">{err}</div>}
     </div>
   );

@@ -10,13 +10,13 @@ export interface OnboardingStepDef {
 export const ONBOARDING_STEPS: OnboardingStepDef[] = [
   {
     step: 1,
-    title: "① 접속하고 로그인하기",
-    description: "아래 버튼을 눌러 사이트에 접속한 뒤, 아이 이름과 선생님이 알려주신 비밀번호(숫자 4~6자리)로 로그인해보세요.",
+    title: "① 홈 화면에 바로가기 추가하기",
+    description: "아래 버튼으로 사이트를 먼저 열어보고, 앱처럼 바로 열 수 있도록 휴대폰(또는 태블릿) 홈 화면에 바로가기를 추가해주세요.",
   },
   {
     step: 2,
-    title: "② 홈 화면에 바로가기 추가하기",
-    description: "로그인된 지금 이 화면을 다음부터 앱처럼 바로 열 수 있도록 휴대폰(또는 태블릿) 홈 화면에 추가해주세요.",
+    title: "② 로그인하기",
+    description: "①에서 추가한 홈 화면 아이콘을 눌러 앱을 연 뒤, 아이 이름과 선생님이 알려주신 비밀번호(숫자 4~6자리)로 로그인해보세요.",
   },
   {
     step: 3,

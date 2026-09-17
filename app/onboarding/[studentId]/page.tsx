@@ -118,21 +118,13 @@ export default function OnboardingPage() {
                     rel="noopener noreferrer"
                     style={{ width: "100%", textAlign: "center" }}
                   >
-                    사이트 열고 로그인하기
+                    사이트 열기
                   </a>
-                  <p className="muted" style={{ fontSize: "0.8rem", marginTop: 8, marginBottom: 0 }}>
-                    로그인에 성공하면 이 단계는 자동으로 완료 처리돼요. 아래 버튼은 누르지 않아도 괜찮아요.
-                  </p>
-                </>
-              )}
-
-              {s.step === 2 && (
-                <>
-                  <div className="tag-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 12 }}>
+                  <div className="tag-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 12, marginTop: 12 }}>
                     <div>
                       <strong>📱 안드로이드(갤럭시 등, 크롬 브라우저)</strong>
                       <ol style={{ margin: "6px 0 0", paddingLeft: 20, color: "var(--muted)", fontSize: "0.9rem" }}>
-                        <li>①단계에서 로그인한 화면에서</li>
+                        <li>위 버튼으로 연 화면에서</li>
                         <li>화면 오른쪽 위 점 3개(⋮) 메뉴 누르기</li>
                         <li>&quot;홈 화면에 추가&quot; 선택 → 추가</li>
                       </ol>
@@ -140,7 +132,7 @@ export default function OnboardingPage() {
                     <div>
                       <strong>🍎 아이폰(사파리 브라우저)</strong>
                       <ol style={{ margin: "6px 0 0", paddingLeft: 20, color: "var(--muted)", fontSize: "0.9rem" }}>
-                        <li>①단계에서 로그인한 화면에서</li>
+                        <li>위 버튼으로 연 화면에서</li>
                         <li>하단 공유 버튼(□ 위에 화살표) 누르기</li>
                         <li>&quot;홈 화면에 추가&quot; 선택 → 추가</li>
                       </ol>
@@ -149,6 +141,26 @@ export default function OnboardingPage() {
                   <p className="muted" style={{ fontSize: "0.8rem", marginTop: 10, marginBottom: 0 }}>
                     형제자매가 같은 학원에 다니고 있어 이미 앱을 홈 화면에 추가하셨다면, 다시
                     추가하지 않으셔도 괜찮아요. 이 화면 아래 버튼만 눌러주세요.
+                  </p>
+                </>
+              )}
+
+              {s.step === 2 && (
+                <>
+                  <p className="muted" style={{ fontSize: "0.8rem", marginTop: 0 }}>
+                    ①에서 홈 화면에 추가한 아이콘이 안 보이면, 아래 버튼으로도 접속할 수 있어요.
+                  </p>
+                  <a
+                    className="btn secondary"
+                    href={loginUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ width: "100%", textAlign: "center" }}
+                  >
+                    접속하기
+                  </a>
+                  <p className="muted" style={{ fontSize: "0.8rem", marginTop: 8, marginBottom: 0 }}>
+                    로그인에 성공하면 이 단계는 자동으로 완료 처리돼요. 아래 버튼은 누르지 않아도 괜찮아요.
                   </p>
                 </>
               )}

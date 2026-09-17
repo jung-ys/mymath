@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/clientUtils";
@@ -28,7 +29,9 @@ function LoginPageInner() {
 
   useEffect(() => {
     if (forceLogin) return;
-    api<{ authed: boolean; type?: string }>("/api/me")
+    // retries: 네트워크가 잠깐 불안정해서 이미 로그인되어 있는데도 로그인 폼이 잘못
+    // 보이는 경우를 줄인다.
+    api<{ authed: boolean; type?: string }>("/api/me", { retries: 2 })
       .then((me) => {
         if (me.authed && me.type === "student") router.replace("/student");
         else setChecking(false);
@@ -64,9 +67,18 @@ function LoginPageInner() {
       </header>
 
       <div className="wrap narrow">
-        <div className="hero">
-          <p className="academy-name">{ACADEMY_NAME}</p>
-          <h1>구구단 레벨업 시험</h1>
+        <div className="hero-fun">
+          <span className="op-deco" style={{ top: 10, left: 14, fontSize: "2.4rem", transform: "rotate(-12deg)" }}>
+            +
+          </span>
+          <span className="op-deco" style={{ top: 14, right: 18, fontSize: "2.8rem", transform: "rotate(10deg)" }}>
+            ×
+          </span>
+          <span className="op-deco" style={{ bottom: 10, left: 24, fontSize: "2.2rem", transform: "rotate(8deg)" }}>
+            ÷
+          </span>
+          <Image src="/icon.png" alt="" width={72} height={72} className="icon-badge" priority />
+          <h1 className="fun-title">구구단 레벨업</h1>
           <p>
             2단부터 19단까지, 4단계로 나누어 승급 시험을 봐요.
             <br />
@@ -75,7 +87,7 @@ function LoginPageInner() {
         </div>
 
         <div className="card">
-          <h2 className="mt0">학생 로그인</h2>
+          <h2 className="mt0">🔑 학생 로그인</h2>
           <form onSubmit={onSubmit}>
             <label htmlFor="name">이름</label>
             <input

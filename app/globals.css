@@ -131,6 +131,76 @@ header.topbar nav a:hover, header.topbar nav button.link:hover { color: var(--br
 }
 .hero p { color: var(--muted); font-size: 1.05rem; }
 
+/* "펀" 테마 — 로그인 화면/학생 대시보드처럼 아이·학부모가 매일 여는 화면을 밝고
+   재미있게 만들기 위한 것. 관리자·리포트 등 다른 화면의 --brand(보라색) 톤은
+   그대로 두고, 이 클래스를 쓰는 곳에만 하늘색 브랜드 룩을 입힌다. */
+.hero-fun {
+  position: relative;
+  overflow: hidden;
+  border-radius: 26px;
+  padding: 30px 22px 26px;
+  margin-bottom: 20px;
+  background: linear-gradient(160deg, #6cd0f5 0%, #4fc3f7 55%, #38b3ec 100%);
+  box-shadow: 0 14px 30px rgba(35, 150, 210, 0.28);
+  text-align: center;
+}
+.hero-fun .icon-badge {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  display: block;
+  margin: 0 auto 12px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+.hero-fun .fun-title {
+  font-family: "Black Han Sans", "Pretendard", sans-serif;
+  font-weight: 400;
+  font-size: 2rem;
+  line-height: 1.15;
+  color: #ffffff;
+  -webkit-text-stroke: 3px #0b2233;
+  paint-order: stroke fill;
+  margin: 0 0 10px;
+}
+.hero-fun p { color: rgba(255, 255, 255, 0.96); font-size: 1rem; margin: 0; position: relative; z-index: 1; }
+.hero-fun .op-deco {
+  position: absolute;
+  font-family: "Black Han Sans", "Pretendard", sans-serif;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.3);
+  -webkit-text-stroke: 2px rgba(11, 34, 51, 0.2);
+  paint-order: stroke fill;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+.fun-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffd23f;
+  color: #0b2233;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 0.8rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* 대시보드 상단 통계(연속출석/누적레벨업)를 흰 칩으로 띄워 하늘색 배경 위에서 잘 보이게 */
+.stat-fun-row { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; position: relative; z-index: 1; }
+.stat-fun-row .chip {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 10px 18px;
+  min-width: 78px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+.stat-fun-row .chip .num { font-size: 1.35rem; font-weight: 900; color: #0b2233; display: block; }
+.stat-fun-row .chip .label { font-size: 0.7rem; font-weight: 700; color: #5b7180; }
+
 .academy-name {
   display: inline-block;
   color: var(--brand-dark);
@@ -357,6 +427,22 @@ tr:last-child td { border-bottom: none; }
   animation: timer-pulse 0.5s ease-in-out infinite;
   color: var(--bad) !important;
 }
+
+/* 오늘의 테스트 화면: 매일 보는 화면이라 승급 시험과는 다른, 밝고 경쾌한 하늘색 톤 */
+.exam-box.daily-exam { border: none; }
+.exam-box.daily-exam .exam-head-fun {
+  background: linear-gradient(120deg, #4fc3f7, #38b3ec);
+  color: #fff;
+  border-radius: 16px;
+  padding: 12px 18px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+.exam-box.daily-exam .exam-head-fun .emoji { font-size: 1.4rem; }
 
 /* 가로로 넓게, 세로로는 짧게 — 화면 너비가 되는 만큼 열이 자동으로 늘어난다
    (문제 수가 많은 승급 시험일수록 이 방식이 스크롤을 크게 줄여준다). */

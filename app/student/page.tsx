@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, ApiError, levelBadgeClass, levelEmoji, fmtDate, handleProblemGridKeyDown } from "@/lib/clientUtils";
+import Image from "next/image";
+import { api, ApiError, levelEmoji, fmtDate, handleProblemGridKeyDown } from "@/lib/clientUtils";
 import { ACADEMY_NAME } from "@/lib/branding";
 import { rewardLabel } from "@/lib/rewards";
 import { FINAL_LEVEL } from "@/lib/levels";
@@ -156,7 +157,7 @@ function ReadinessBars({ r }: { r: Readiness }) {
 
 export default function StudentPage() {
   const router = useRouter();
-  const [view, setView] = useState<"loading" | "dashboard" | "exam" | "result">("loading");
+  const [view, setView] = useState<"loading" | "error" | "dashboard" | "exam" | "result">("loading");
   const [name, setName] = useState("");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [examState, setExamState] = useState<ExamState | null>(null);
@@ -169,26 +170,34 @@ export default function StudentPage() {
   const lastTickSlotRef = useRef<number | null>(null);
 
   const loadSummary = useCallback(async () => {
-    const s = await api<Summary>("/api/student/summary");
+    const s = await api<Summary>("/api/student/summary", { retries: 2 });
     setSummary(s);
     setView("dashboard");
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const me = await api<{ authed: boolean; type?: string; student?: { name: string } }>("/api/me");
-        if (!me.authed || me.type !== "student") {
-          router.replace("/");
-          return;
-        }
-        setName(me.student!.name);
-        await loadSummary();
-      } catch {
+  const checkAuthAndLoad = useCallback(async () => {
+    try {
+      // retries: 모바일에서 앱 아이콘을 눌러 막 켰을 때 네트워크가 잠깐 불안정한 경우가
+      // 흔해서, 그걸 "로그아웃됨"으로 착각해 로그인 화면으로 튕기지 않도록 몇 번 재시도한다.
+      const me = await api<{ authed: boolean; type?: string; student?: { name: string } }>("/api/me", { retries: 2 });
+      if (!me.authed || me.type !== "student") {
         router.replace("/");
+        return;
       }
-    })();
+      setName(me.student!.name);
+      await loadSummary();
+    } catch {
+      // 서버가 "로그인 안 됨"이라고 명확히 답한 게 아니라 재시도까지 다 실패한 네트워크
+      // 문제이므로, 로그인 화면으로 보내는 대신 다시 시도할 수 있는 화면을 보여준다.
+      setView("error");
+    }
   }, [router, loadSummary]);
+
+  useEffect(() => {
+    void (async () => {
+      await checkAuthAndLoad();
+    })();
+  }, [checkAuthAndLoad]);
 
   async function logout() {
     await api("/api/logout", { method: "POST" });
@@ -294,6 +303,27 @@ export default function StudentPage() {
     return <div className="loading">불러오는 중...</div>;
   }
 
+  if (view === "error") {
+    return (
+      <div className="wrap narrow">
+        <div className="card center" style={{ marginTop: 60 }}>
+          <h2 className="mt0">📶 연결이 불안정해요</h2>
+          <p className="muted">로그인은 유지되어 있어요. 인터넷 연결을 확인하고 다시 시도해주세요.</p>
+          <button
+            className="btn"
+            style={{ marginTop: 8 }}
+            onClick={() => {
+              setView("loading");
+              void checkAuthAndLoad();
+            }}
+          >
+            다시 시도
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <header className="topbar">
@@ -322,14 +352,18 @@ export default function StudentPage() {
         )}
 
         {view === "exam" && examState && (
-          <div className={`card exam-box${examState.kind === "level" ? " level-exam" : ""}`}>
-            <h2 className="mt0">
-              {examState.kind === "daily"
-                ? "📅 오늘의 테스트"
-                : examState.kind === "retest"
-                  ? "🔁 오답 다시 풀기"
-                  : `🏆 ${examState.levelDef?.title ?? ""} 승급 시험`}
-            </h2>
+          <div
+            className={`card exam-box${examState.kind === "level" ? " level-exam" : ""}${examState.kind === "daily" ? " daily-exam" : ""}`}
+          >
+            {examState.kind === "daily" ? (
+              <div className="exam-head-fun">
+                <span className="emoji">📅</span> 오늘의 테스트, 화이팅!
+              </div>
+            ) : (
+              <h2 className="mt0">
+                {examState.kind === "retest" ? "🔁 오답 다시 풀기" : `🏆 ${examState.levelDef?.title ?? ""} 승급 시험`}
+              </h2>
+            )}
             {examState.kind === "daily" && !!examState.forcedWrongCount && (
               <p className="muted center" style={{ fontSize: "0.85rem", marginTop: -4 }}>
                 이 중 {examState.forcedWrongCount}문제는 예전에 틀렸던 문제 복습이에요 🔁
@@ -403,7 +437,6 @@ function Dashboard({
   onStartRetest: () => void;
 }) {
   const { student, dailyTest, levelExam, history, wrongCount } = summary;
-  const badgeClass = levelBadgeClass(student.level, summary.masterLevel);
 
   const dailyCard = dailyTest.taken ? (
     <div className="card">
@@ -505,21 +538,26 @@ function Dashboard({
 
   return (
     <>
-      <div className="card flex-between">
-        <div>
-          <span className="level-emoji" aria-hidden="true">
-            {levelEmoji(student.level, summary.masterLevel)}
-          </span>
-          <span className={`badge ${badgeClass}`}>{student.levelTitle}</span>
-          <div className="stat-row">
-            <div className="stat">
-              <div className="num">{student.streak}</div>
-              <div className="label">연속 출석일</div>
-            </div>
-            <div className="stat">
-              <div className="num">{history.levelUps.length}</div>
-              <div className="label">누적 레벨업</div>
-            </div>
+      <div className="hero-fun">
+        <span className="op-deco" style={{ top: 8, left: 12, fontSize: "2rem", transform: "rotate(-10deg)" }}>
+          +
+        </span>
+        <span className="op-deco" style={{ top: 6, right: 14, fontSize: "2.3rem", transform: "rotate(10deg)" }}>
+          ×
+        </span>
+        <Image src="/icon.png" alt="" width={64} height={64} className="icon-badge" priority />
+        <h1 className="fun-title" style={{ fontSize: "1.5rem" }}>
+          {levelEmoji(student.level, summary.masterLevel)} {student.levelTitle}
+        </h1>
+        <p>오늘도 조금씩, 꾸준히 화이팅! 💪</p>
+        <div className="stat-fun-row">
+          <div className="chip">
+            <span className="num">🔥 {student.streak}</span>
+            <span className="label">연속 출석일</span>
+          </div>
+          <div className="chip">
+            <span className="num">🏅 {history.levelUps.length}</span>
+            <span className="label">누적 레벨업</span>
           </div>
         </div>
       </div>

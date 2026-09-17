@@ -16,24 +16,40 @@ function isErrorPayload(x: unknown): x is ErrorPayload {
   return typeof x === "object" && x !== null && "error" in x;
 }
 
-export async function api<T = unknown>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
-  const res = await fetch(path, {
-    method: options.method || "GET",
-    headers: options.body ? { "Content-Type": "application/json" } : undefined,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-    credentials: "same-origin",
-  });
-  let data: unknown = null;
-  try {
-    data = await res.json();
-  } catch {
-    data = null;
+// retries: 모바일 네트워크가 잠깐 끊기는 경우(비행기모드 전환, 와이파이↔데이터 전환 등)를
+// 대비한 재시도 횟수. 서버가 명확하게 응답한 에러(ApiError)는 다시 해봐도 똑같을 가능성이
+// 높아 바로 던지고, fetch 자체가 실패한 순수 네트워크 오류일 때만 잠깐 쉬었다 재시도한다.
+// 로그인 여부 확인(/api/me) 같은 곳에서, 네트워크가 잠깐 끊긴 것뿐인데 "로그아웃된 것처럼"
+// 로그인 화면으로 튕기는 문제를 줄이는 용도.
+export async function api<T = unknown>(
+  path: string,
+  options: { method?: string; body?: unknown; retries?: number } = {}
+): Promise<T> {
+  const { method = "GET", body, retries = 0 } = options;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetch(path, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+        credentials: "same-origin",
+      });
+      let data: unknown = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+      if (!res.ok) {
+        const message = isErrorPayload(data) && typeof data.error === "string" ? data.error : `요청 실패 (${res.status})`;
+        throw new ApiError(message, res.status, data);
+      }
+      return data as T;
+    } catch (ex) {
+      if (ex instanceof ApiError || attempt >= retries) throw ex;
+      await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+    }
   }
-  if (!res.ok) {
-    const message = isErrorPayload(data) && typeof data.error === "string" ? data.error : `요청 실패 (${res.status})`;
-    throw new ApiError(message, res.status, data);
-  }
-  return data as T;
 }
 
 export function levelBadgeClass(level: number, masterLevel: number): string {

@@ -5,7 +5,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { api, ApiError, levelBadgeClass, fmtDate, fmtDateOnly } from "@/lib/clientUtils";
 import type { studentSummary } from "@/lib/studentView";
 import { ACADEMY_NAME } from "@/lib/branding";
-import { ONBOARDING_STEPS } from "@/lib/onboarding";
+import { ONBOARDING_STEPS, buildOnboardingPath } from "@/lib/onboarding";
 
 type StudentDetailData = Awaited<ReturnType<typeof studentSummary>>;
 
@@ -669,6 +669,8 @@ function OnboardingStatusCard() {
   const [rows, setRows] = useState<OnboardingStudentRow[] | null>(null);
   const [err, setErr] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [groupCopied, setGroupCopied] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -685,14 +687,39 @@ function OnboardingStatusCard() {
     })();
   }, [load]);
 
-  async function copyLink(id: string) {
-    const url = `${window.location.origin}/onboarding/${id}`;
+  async function copyUrl(ids: string[]) {
+    const url = `${window.location.origin}${buildOnboardingPath(ids)}`;
     try {
       await navigator.clipboard.writeText(url);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 2000);
+      return true;
     } catch {
       prompt("아래 주소를 복사해서 카카오톡으로 보내주세요:", url);
+      return false;
+    }
+  }
+
+  async function copyLink(id: string) {
+    const ok = await copyUrl([id]);
+    if (ok) {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 2000);
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function copyGroupLink() {
+    const ok = await copyUrl(Array.from(selected));
+    if (ok) {
+      setGroupCopied(true);
+      setTimeout(() => setGroupCopied(false), 2000);
     }
   }
 
@@ -715,11 +742,22 @@ function OnboardingStatusCard() {
         학생마다 &ldquo;링크 복사&rdquo;를 눌러 그 학부모님께 카카오톡으로 보내주세요. 부모님이
         홈 화면 추가 → 로그인 → 오늘의 테스트까지 {ONBOARDING_STEPS.length}단계를 진행하면
         아래 표에 바로 반영됩니다(②·③단계는 자동 체크, ①단계(홈 화면 추가)만 부모님이 직접 체크).
+        형제자매가 있으면 왼쪽 체크박스로 두 명 이상 선택해서 <b>통합 링크</b> 하나로 보낼 수도
+        있어요 — 홈 화면 추가는 한 번만, 로그인·테스트는 아이마다 각자 하게 안내돼요.
       </p>
+      {selected.size >= 2 && (
+        <div className="callout" style={{ marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <span>{selected.size}명 선택됨</span>
+          <button className="btn small" onClick={copyGroupLink}>
+            {groupCopied ? "복사됨!" : "🔗 통합 링크 복사"}
+          </button>
+        </div>
+      )}
       <div style={{ overflowX: "auto" }}>
         <table>
           <thead>
             <tr>
+              <th></th>
               <th>이름</th>
               {ONBOARDING_STEPS.map((s) => (
                 <th key={s.step} style={{ textAlign: "center" }}>
@@ -732,6 +770,9 @@ function OnboardingStatusCard() {
           <tbody>
             {rows.map((r) => (
               <tr key={r.id}>
+                <td>
+                  <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)} />
+                </td>
                 <td>
                   {r.name}
                   {(r.school || r.grade) && (

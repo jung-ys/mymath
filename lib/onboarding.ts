@@ -26,3 +26,13 @@ export const ONBOARDING_STEPS: OnboardingStepDef[] = [
 ];
 
 export const ONBOARDING_TOTAL_STEPS = ONBOARDING_STEPS.length;
+
+// 형제자매가 같은 학원에 다닐 때, 링크 하나로 두 아이를 모두 안내할 수 있도록
+// URL 경로에 학생 ID를 "-"로 이어붙여 넣는다(cuid는 "-"를 쓰지 않아 구분자로 안전함).
+export function parseOnboardingIds(param: string): string[] {
+  return Array.from(new Set(param.split("-").map((s) => s.trim()).filter(Boolean)));
+}
+
+export function buildOnboardingPath(ids: string[]): string {
+  return `/onboarding/${ids.join("-")}`;
+}

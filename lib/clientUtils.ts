@@ -57,6 +57,13 @@ export function fmtDate(ts: string | number | Date | null | undefined): string {
   return d.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+export function fmtDuration(sec: number | null | undefined): string {
+  if (sec == null || sec < 0) return "-";
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return m > 0 ? `${m}분 ${s}초` : `${s}초`;
+}
+
 export function fmtDateOnly(dateStr: string | null | undefined): string {
   if (!dateStr) return "-";
   const [, m, d] = dateStr.split("-");

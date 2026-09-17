@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { api, ApiError, levelBadgeClass, fmtDate, fmtDateOnly } from "@/lib/clientUtils";
+import { api, ApiError, levelBadgeClass, fmtDate, fmtDateOnly, fmtDuration } from "@/lib/clientUtils";
 import type { studentSummary } from "@/lib/studentView";
 import type { RangeReportStats } from "@/lib/reportStats";
 import { ACADEMY_NAME } from "@/lib/branding";
@@ -194,7 +194,7 @@ function RangeReport({ studentId }: { studentId: string }) {
                       <td>
                         {d.score}/{d.total} ({Math.round((d.score / d.total) * 100)}%)
                       </td>
-                      <td>{d.elapsedSec != null ? `${d.elapsedSec}초` : "-"}</td>
+                      <td>{fmtDuration(d.elapsedSec)}</td>
                     </tr>
                   ))}
                 </tbody>

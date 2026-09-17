@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { api, ApiError, levelBadgeClass, fmtDate, fmtDateOnly } from "@/lib/clientUtils";
+import { api, ApiError, levelBadgeClass, fmtDate, fmtDateOnly, fmtDuration } from "@/lib/clientUtils";
 import type { studentSummary } from "@/lib/studentView";
 import { ACADEMY_NAME } from "@/lib/branding";
 import { ONBOARDING_STEPS, buildOnboardingPath } from "@/lib/onboarding";
@@ -878,6 +878,7 @@ function StudentDetail({
                   <th>날짜</th>
                   <th>점수</th>
                   <th>응시시각</th>
+                  <th>소요시간</th>
                 </tr>
               </thead>
               <tbody>
@@ -888,6 +889,7 @@ function StudentDetail({
                       {d.score}/{d.total}
                     </td>
                     <td>{fmtDate(d.takenAt)}</td>
+                    <td>{fmtDuration(d.elapsedSec)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -911,6 +913,7 @@ function StudentDetail({
                   <th>점수</th>
                   <th>결과</th>
                   <th>응시시각</th>
+                  <th>소요시간</th>
                 </tr>
               </thead>
               <tbody>
@@ -924,6 +927,7 @@ function StudentDetail({
                       <span className={`pill ${e.passed ? "pass" : "fail"}`}>{e.passed ? "통과" : "미통과"}</span>
                     </td>
                     <td>{fmtDate(e.takenAt)}</td>
+                    <td>{fmtDuration(e.elapsedSec)}</td>
                   </tr>
                 ))}
               </tbody>

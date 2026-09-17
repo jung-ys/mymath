@@ -85,12 +85,12 @@ export async function studentHistory(studentId: string, limit = 20) {
 //    전부 봤는지를 확인한다(정답 여부와 무관하게 "봤는지"만 본다).
 // 2) 연속 정답 — 오늘의 테스트를 최근 것부터 거슬러 올라가며 100%인 기록이 연속으로
 //    requiredStreak(5)회 이어져야 한다. 중간에 한 번이라도 미달이면 그 지점에서 끊긴다.
-export async function computeReadiness(studentId: string, level: number) {
-  const { requiredStreak, requiredAccuracy } = READINESS_CONFIG;
+// 커버리지 계산(전체 이력을 봐야 하므로 개수 제한 없이 가져온다 — 문항 수가 많지 않아 부담 적음)
+// 을 computeReadiness와 hasFullLevelCoverage가 함께 쓸 수 있도록 분리했다.
+async function computeCoverage(studentId: string, level: number) {
   const levelDef = getLevelDef(level);
   const requiredKeys = new Set((levelDef ? pairsForLevel(levelDef) : []).map(([a, b]) => `${a}x${b}`));
 
-  // 커버리지는 전체 이력을 봐야 하므로 개수 제한 없이 가져온다(문항 수가 많지 않아 부담 적음).
   const allTests = await prisma.dailyTest.findMany({
     where: { studentId },
     orderBy: { takenAt: "desc" },
@@ -105,9 +105,28 @@ export async function computeReadiness(studentId: string, level: number) {
   const coveredCount = Array.from(requiredKeys).filter((k) => seenKeys.has(k)).length;
   const fullyCovered = requiredKeys.size > 0 && coveredCount === requiredKeys.size;
 
+  return { allTests, requiredKeys, coveredCount, fullyCovered };
+}
+
+// 학생이 해당 단계의 모든 (단×배수) 조합을 오늘의 테스트 누적 이력에서 이미 한 번씩 다
+// 접해봤는지. 이게 true가 되는 순간부터 오늘의 테스트가 "전체 범위 시험"으로 바뀐다
+// (daily-test/start 라우트에서 사용).
+export async function hasFullLevelCoverage(studentId: string, level: number): Promise<boolean> {
+  const { fullyCovered } = await computeCoverage(studentId, level);
+  return fullyCovered;
+}
+
+export async function computeReadiness(studentId: string, level: number) {
+  const { requiredStreak, requiredAccuracy } = READINESS_CONFIG;
+  const { allTests, requiredKeys, coveredCount, fullyCovered } = await computeCoverage(studentId, level);
+
+  // "연속 100점"은 그 단계의 전체 문항(requiredKeys.size)을 다 푼 시험이어야만 인정한다.
+  // 커버리지를 채우는 중에 보는 15~30문제짜리 일반 오늘의 테스트는 100점이어도 스트릭에
+  // 포함시키지 않는다 — 전체 범위를 다 맞혀야 진짜 승급 자격이라고 보기 때문.
   let qualifyingStreak = 0;
   for (const t of allTests) {
-    if (t.total > 0 && t.score / t.total >= requiredAccuracy) qualifyingStreak++;
+    const isFullScopeTest = requiredKeys.size > 0 && t.total === requiredKeys.size;
+    if (isFullScopeTest && t.score / t.total >= requiredAccuracy) qualifyingStreak++;
     else break;
   }
 

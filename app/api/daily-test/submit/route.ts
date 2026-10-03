@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthedStudent } from "@/lib/apiAuth";
 import { decryptExamToken } from "@/lib/examToken";
 import { todayKST } from "@/lib/levels";
+import { todayStats } from "@/lib/studentView";
 import { markOnboardingStepDone } from "@/lib/onboardingServer";
 
 export async function POST(req: NextRequest) {
@@ -28,34 +28,34 @@ export async function POST(req: NextRequest) {
     return { a: p.a, b: p.b, answer: p.answer, given: Number.isFinite(given) ? given : null, correct };
   });
 
-  const today = todayKST();
-  const yStr = todayKST(new Date(Date.now() - 24 * 60 * 60 * 1000));
-  const nextStreak = student.lastDailyTestDate === yStr ? student.streak + 1 : 1;
-
-  try {
-    const [record] = await prisma.$transaction([
-      prisma.dailyTest.create({
-        data: {
-          studentId: student.id,
-          date: today,
-          score,
-          total,
-          elapsedSec: Number(elapsedSec) || null,
-          detail,
-        },
-      }),
-      prisma.student.update({
-        where: { id: student.id },
-        data: { streak: nextStreak, lastDailyTestDate: today },
-      }),
-    ]);
-    await markOnboardingStepDone(student.id, 3);
-    return NextResponse.json({ result: record, streak: nextStreak });
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      const existing = await prisma.dailyTest.findUnique({ where: { studentId_date: { studentId: student.id, date: today } } });
-      return NextResponse.json({ error: "오늘의 테스트는 이미 완료했습니다.", result: existing }, { status: 409 });
-    }
-    throw err;
+  const stats = await todayStats(student.id, student.dailyTestLimit);
+  if (!stats.canStartMore) {
+    return NextResponse.json({ error: "오늘은 더 이상 테스트를 제출할 수 없어요.", result: stats.dailyDone }, { status: 409 });
   }
+
+  const today = todayKST();
+  // 오늘 이미 한 번 이상 봤다면(취미로 더 풀어보는 경우) 연속 출석일은 이미 오늘 자로
+  // 올라가 있으니 또 올리지 않는다. 오늘 첫 응시일 때만 어제 기준으로 연속 여부를 계산한다.
+  const alreadyCountedToday = student.lastDailyTestDate === today;
+  const yStr = todayKST(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  const nextStreak = alreadyCountedToday ? student.streak : student.lastDailyTestDate === yStr ? student.streak + 1 : 1;
+
+  const [record] = await prisma.$transaction([
+    prisma.dailyTest.create({
+      data: {
+        studentId: student.id,
+        date: today,
+        score,
+        total,
+        elapsedSec: Number(elapsedSec) || null,
+        detail,
+      },
+    }),
+    prisma.student.update({
+      where: { id: student.id },
+      data: { streak: nextStreak, lastDailyTestDate: today },
+    }),
+  ]);
+  await markOnboardingStepDone(student.id, 3);
+  return NextResponse.json({ result: record, streak: nextStreak });
 }

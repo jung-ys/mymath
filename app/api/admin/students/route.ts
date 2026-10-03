@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const students = await prisma.student.findMany({ orderBy: { name: "asc" } });
   const list = await Promise.all(
     students.map(async (s) => {
-      const { dailyDone } = await todayStats(s.id);
+      const { dailyDone } = await todayStats(s.id, s.dailyTestLimit);
       return { ...publicStudent(s), todayDone: !!dailyDone };
     })
   );

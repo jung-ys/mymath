@@ -40,6 +40,10 @@ model Student {
   // (LevelTimeSetting, 그것도 없으면 자동 계산값)을 그대로 따른다.
   examTimeOverrideSec Int?
 
+  // 하루에 "오늘의 테스트"를 몇 번까지 볼 수 있는지. 기본 1회이며, 취미로 더 풀어보고
+  // 싶어하는 학생은 선생님이 늘려줄 수 있다. 0이면 무제한.
+  dailyTestLimit Int @default(1)
+
   dailyTests      DailyTest[]
   levelExams      LevelExam[]
   levelUps        LevelUp[]
@@ -60,7 +64,8 @@ model OnboardingStep {
   @@unique([studentId, step])
 }
 
-// 오늘의 테스트 응시 기록 (하루 1회)
+// 오늘의 테스트 응시 기록. 기본은 하루 1회지만, 학생별 dailyTestLimit 설정에 따라
+// 같은 날짜에 여러 행이 쌓일 수 있다(그래서 (studentId, date) 유니크 제약을 두지 않는다).
 model DailyTest {
   id         String   @id @default(cuid())
   studentId  String
@@ -72,7 +77,7 @@ model DailyTest {
   detail     Json // [{a,b,answer,given,correct}]
   takenAt    DateTime @default(now())
 
-  @@unique([studentId, date])
+  @@index([studentId, date])
   @@index([studentId, takenAt])
 }
 

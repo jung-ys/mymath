@@ -29,8 +29,12 @@ function PresetSelect({
   onChange: (v: string) => void;
   placeholder: string;
 }) {
-  const isCustom = value !== "" && !presets.includes(value);
-  const selectValue = value === "" ? "" : isCustom ? CUSTOM_OPTION : value;
+  // "직접 입력" 모드인지는 value만 보고는 판단할 수 없다 — value가 ""로 바뀌는 순간
+  // (직접 입력 칸을 비웠을 때, 또는 막 "직접 입력..."을 고른 직후) select가 presets에
+  // 없는 값이라는 조건이 깨져서 "선택 안 함"으로 바로 튕겨버렸던 게 버그였다. 그래서
+  // 직접 입력 모드 여부는 별도 상태로 따로 들고 있는다.
+  const [customMode, setCustomMode] = useState(value !== "" && !presets.includes(value));
+  const selectValue = customMode ? CUSTOM_OPTION : presets.includes(value) ? value : "";
 
   return (
     <>
@@ -39,7 +43,13 @@ function PresetSelect({
         value={selectValue}
         onChange={(e) => {
           const v = e.target.value;
-          onChange(v === CUSTOM_OPTION ? "" : v);
+          if (v === CUSTOM_OPTION) {
+            setCustomMode(true);
+            onChange("");
+          } else {
+            setCustomMode(false);
+            onChange(v);
+          }
         }}
       >
         <option value="">선택 안 함</option>
@@ -50,12 +60,12 @@ function PresetSelect({
         ))}
         <option value={CUSTOM_OPTION}>직접 입력...</option>
       </select>
-      {selectValue === CUSTOM_OPTION && (
+      {customMode && (
         <input
           type="text"
           style={{ marginTop: 8 }}
           placeholder={placeholder}
-          value={isCustom ? value : ""}
+          value={value}
           onChange={(e) => onChange(e.target.value)}
         />
       )}
@@ -868,6 +878,8 @@ function StudentDetail({
         />
       )}
 
+      <DailyLimitEditor studentId={student.id} limit={customConfig.dailyTestLimit} onSaved={onConfigSaved} />
+
       <div className="grid-2">
         <div>
           <h3>오늘의 테스트 이력</h3>
@@ -1076,6 +1088,69 @@ function ExamTimeEditor({
           개별 설정 해제
         </button>
       )}
+      {err && <div className="error-box show">{err}</div>}
+    </div>
+  );
+}
+
+function DailyLimitEditor({
+  studentId,
+  limit,
+  onSaved,
+}: {
+  studentId: string;
+  limit: number;
+  onSaved: () => Promise<void>;
+}) {
+  const [unlimited, setUnlimited] = useState(limit === 0);
+  const [count, setCount] = useState(limit === 0 ? "1" : String(limit));
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function save() {
+    setSaving(true);
+    setErr("");
+    try {
+      const dailyTestLimit = unlimited ? 0 : Math.max(1, Number(count.trim()) || 1);
+      await api(`/api/admin/students/${studentId}/daily-limit`, { method: "POST", body: { dailyTestLimit } });
+      await onSaved();
+    } catch (ex) {
+      setErr(ex instanceof ApiError ? ex.message : "저장에 실패했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ background: "#f8f6ff" }}>
+      <h3 className="mt0">🔁 이 학생의 하루 오늘의 테스트 횟수</h3>
+      <p className="muted" style={{ fontSize: "0.82rem" }}>
+        현재 설정: <strong>{limit === 0 ? "무제한" : `하루 ${limit}회`}</strong> (기본값 1회)
+      </p>
+      <div className="grid-2">
+        <div>
+          <label htmlFor="daily-limit-count">하루 허용 횟수</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            id="daily-limit-count"
+            disabled={unlimited}
+            value={unlimited ? "" : count}
+            placeholder="예: 1"
+            onChange={(e) => setCount(e.target.value.replace(/[^0-9]/g, "").slice(0, 2))}
+          />
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", paddingBottom: 10 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
+            <input type="checkbox" checked={unlimited} onChange={(e) => setUnlimited(e.target.checked)} />
+            무제한
+          </label>
+        </div>
+      </div>
+      <button className="btn small" disabled={saving} onClick={save}>
+        {saving ? "저장 중..." : "저장"}
+      </button>
       {err && <div className="error-box show">{err}</div>}
     </div>
   );

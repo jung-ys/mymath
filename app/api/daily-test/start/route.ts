@@ -21,9 +21,9 @@ export async function POST(req: NextRequest) {
   const student = await getAuthedStudent(req);
   if (!student) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
-  const { dailyDone } = await todayStats(student.id);
-  if (dailyDone) {
-    return NextResponse.json({ error: "오늘의 테스트는 이미 완료했습니다.", result: dailyDone }, { status: 409 });
+  const stats = await todayStats(student.id, student.dailyTestLimit);
+  if (!stats.canStartMore) {
+    return NextResponse.json({ error: "오늘은 더 이상 테스트를 시작할 수 없어요.", result: stats.dailyDone }, { status: 409 });
   }
 
   const hasCustom = student.customTables.length > 0;

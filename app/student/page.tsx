@@ -53,6 +53,11 @@ interface Summary {
     taken: boolean;
     result: { score: number; total: number } | null;
     config: ExamConfig;
+    count: number;
+    limit: number;
+    unlimited: boolean;
+    remaining: number | null;
+    canStartMore: boolean;
   };
   levelExam:
     | { available: false; reason: string }
@@ -438,28 +443,39 @@ function Dashboard({
 }) {
   const { student, dailyTest, levelExam, history, wrongCount } = summary;
 
-  const dailyCard = dailyTest.taken ? (
+  const dailyCard = (
     <div className="card">
       <h2 className="mt0">📅 오늘의 테스트</h2>
-      <div className="result-banner" style={{ padding: 16 }}>
-        <div className="score">
-          {dailyTest.result!.score} / {dailyTest.result!.total}
+      {dailyTest.taken && (
+        <div className="result-banner" style={{ padding: 16 }}>
+          <div className="score">
+            {dailyTest.result!.score} / {dailyTest.result!.total}
+          </div>
+          <p className="muted" style={{ margin: "4px 0 0" }}>
+            {dailyTest.unlimited
+              ? `오늘 ${dailyTest.count}번째 결과예요.`
+              : dailyTest.canStartMore
+                ? `오늘 ${dailyTest.count}/${dailyTest.limit}회 완료했어요.`
+                : "오늘 테스트를 완료했어요. 내일 또 도전하세요!"}
+          </p>
         </div>
-        <p className="muted" style={{ margin: "4px 0 0" }}>
-          오늘 테스트를 완료했어요. 내일 또 도전하세요!
-        </p>
-      </div>
-    </div>
-  ) : (
-    <div className="card">
-      <h2 className="mt0">📅 오늘의 테스트</h2>
-      <p className="muted" style={{ fontSize: "0.85rem" }}>
-        {dailyTest.config.questionCount}문제, 제한시간 {Math.floor(dailyTest.config.timeLimitSec / 60)}분. 지금까지 배운 단을
-        복습해요.
-      </p>
-      <button className="btn" onClick={onStartDaily}>
-        오늘의 테스트 시작
-      </button>
+      )}
+      {dailyTest.canStartMore && (
+        <>
+          <p className="muted" style={{ fontSize: "0.85rem" }}>
+            {dailyTest.config.questionCount}문제, 제한시간 {Math.floor(dailyTest.config.timeLimitSec / 60)}분.
+            {dailyTest.taken
+              ? " 한 번 더 풀어볼까요?"
+              : " 지금까지 배운 단을 복습해요."}
+            {!dailyTest.unlimited && dailyTest.remaining != null && dailyTest.remaining < dailyTest.limit && (
+              <> (오늘 {dailyTest.remaining}번 더 볼 수 있어요)</>
+            )}
+          </p>
+          <button className="btn" onClick={onStartDaily}>
+            {dailyTest.taken ? "오늘의 테스트 다시 풀기" : "오늘의 테스트 시작"}
+          </button>
+        </>
+      )}
     </div>
   );
 

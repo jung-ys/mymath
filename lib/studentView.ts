@@ -54,12 +54,24 @@ export function publicStudent(s: Student) {
   };
 }
 
-export async function todayStats(studentId: string) {
+// dailyTestLimit: 학생별 "오늘의 테스트" 하루 허용 횟수(0 = 무제한).
+export async function todayStats(studentId: string, dailyTestLimit: number) {
   const today = todayKST();
-  const dailyDone = await prisma.dailyTest.findUnique({
-    where: { studentId_date: { studentId, date: today } },
+  const todaysTests = await prisma.dailyTest.findMany({
+    where: { studentId, date: today },
+    orderBy: { takenAt: "desc" },
   });
-  return { today, dailyDone };
+  const count = todaysTests.length;
+  const unlimited = dailyTestLimit === 0;
+  return {
+    today,
+    dailyDone: todaysTests[0] ?? null, // 오늘 가장 최근 응시 결과(화면 표시용)
+    count,
+    limit: dailyTestLimit,
+    unlimited,
+    remaining: unlimited ? null : Math.max(0, dailyTestLimit - count),
+    canStartMore: unlimited || count < dailyTestLimit,
+  };
 }
 
 export async function levelExamAttemptToday(studentId: string, level: number) {
@@ -143,7 +155,7 @@ export async function computeReadiness(studentId: string, level: number) {
 }
 
 export async function studentSummary(s: Student) {
-  const { today, dailyDone } = await todayStats(s.id);
+  const { today, dailyDone, count, limit, unlimited, remaining, canStartMore } = await todayStats(s.id, s.dailyTestLimit);
   const levelDef = getLevelDef(s.level);
   const isMaster = s.level >= MASTER_LEVEL;
   const attemptToday = isMaster ? null : await levelExamAttemptToday(s.id, s.level);
@@ -164,6 +176,11 @@ export async function studentSummary(s: Student) {
       taken: !!dailyDone,
       result: dailyDone,
       config: dailyConfig,
+      count,
+      limit,
+      unlimited,
+      remaining,
+      canStartMore,
     },
     customConfig: {
       tables: s.customTables,
@@ -173,6 +190,7 @@ export async function studentSummary(s: Student) {
       allowDuplicates: s.allowDuplicates,
       problemOrder: s.problemOrder,
       examTimeOverrideSec: s.examTimeOverrideSec,
+      dailyTestLimit: s.dailyTestLimit,
     },
     wrongCount: wrongPairs.length,
     levelExam: isMaster

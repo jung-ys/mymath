@@ -105,3 +105,43 @@ export function playFailTone() {
   tone(392, 220, "sine", 0.11, 0);
   tone(311.13, 320, "sine", 0.11, 0.18);
 }
+
+// 짧은 "짝" 소리 하나(화이트노이즈를 아주 짧게 끊어서 박수 소리에 가깝게 근사).
+function clap(delaySec: number, volume = 0.22) {
+  const c = getCtx();
+  if (!c) return;
+  try {
+    const dur = 0.07;
+    const bufferSize = Math.floor(c.sampleRate * dur);
+    const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      const decay = 1 - i / bufferSize;
+      data[i] = (Math.random() * 2 - 1) * decay;
+    }
+    const noise = c.createBufferSource();
+    noise.buffer = buffer;
+    const filter = c.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 1800;
+    filter.Q.value = 0.7;
+    const gain = c.createGain();
+    const start = c.currentTime + delaySec;
+    gain.gain.setValueAtTime(volume, start);
+    gain.gain.exponentialRampToValueAtTime(0.0008, start + dur);
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(c.destination);
+    noise.start(start);
+    noise.stop(start + dur + 0.01);
+  } catch {
+    // 무시
+  }
+}
+
+// 오늘의 학습(오답까지 전부 완료)을 마쳤을 때 — 짝짝짝 박수 + 밝은 칭찬 멜로디.
+export function playApplause() {
+  const claps = [0, 0.09, 0.17, 0.24, 0.33, 0.42, 0.52, 0.64];
+  claps.forEach((d) => clap(d, 0.2 + Math.random() * 0.08));
+  [659.25, 783.99, 987.77, 1174.66].forEach((f, i) => tone(f, 240, "sine", 0.13, 0.55 + i * 0.12));
+}

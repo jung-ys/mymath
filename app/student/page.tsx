@@ -7,7 +7,7 @@ import { api, ApiError, levelEmoji, fmtDate, handleProblemGridKeyDown } from "@/
 import { ACADEMY_NAME } from "@/lib/branding";
 import { rewardLabel } from "@/lib/rewards";
 import { FINAL_LEVEL } from "@/lib/levels";
-import { playStartChime, playTick, playExplosion, playPassFanfare, playFailTone } from "@/lib/sound";
+import { playStartChime, playTick, playExplosion, playPassFanfare, playFailTone, playApplause } from "@/lib/sound";
 import {
   CHEER_MESSAGES,
   LEVEL_PASS_MESSAGES,
@@ -72,6 +72,7 @@ interface Summary {
     daily: { date: string; score: number; total: number; takenAt: string }[];
     levelExams: { level: number; score: number; total: number; passed: boolean; takenAt: string }[];
     levelUps: unknown[];
+    retestAttempts: { score: number; total: number; takenAt: string }[];
   };
 }
 
@@ -421,6 +422,7 @@ export default function StudentPage() {
               setResultData(null);
               await loadSummary();
             }}
+            onContinueRetest={() => startExam("retest")}
           />
         )}
       </div>
@@ -548,6 +550,13 @@ function Dashboard({
       passed: e.passed,
       ts: e.takenAt,
     })),
+    ...history.retestAttempts.map((r) => ({
+      typeLabel: "오답 다시 풀기",
+      score: r.score,
+      total: r.total,
+      passed: r.score === r.total,
+      ts: r.takenAt,
+    })),
   ]
     .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
     .slice(0, 12);
@@ -639,25 +648,45 @@ function Mascot({ mood, message }: { mood: "cheer" | "strong" | "soft"; message:
   );
 }
 
-function ResultView({ data, timedOut, onDone }: { data: SubmitResponse; timedOut: boolean; onDone: () => void }) {
+function ResultView({
+  data,
+  timedOut,
+  onDone,
+  onContinueRetest,
+}: {
+  data: SubmitResponse;
+  timedOut: boolean;
+  onDone: () => void;
+  onContinueRetest: () => void;
+}) {
   const isLevel = "leveledUp" in data;
   const isRetest = "stillWrong" in data;
   const result = data.result;
   const detail = result.detail;
 
+  // "오늘의 학습"이 완전히 끝났는지 — 오늘의 테스트가 바로 만점이었거나, 오답 다시 풀기까지
+  // 전부 다 맞혀서 더 이상 틀린 게 없을 때만 true. 승급 시험은 이 흐름과 무관하다(별도 평가).
+  const studyComplete = isRetest ? data.allCleared : !isLevel && result.score === result.total;
+  const needsRetest = isRetest ? !data.allCleared : !isLevel && result.score < result.total;
+
   // 결과 화면이 다시 렌더링돼도 멘트가 계속 바뀌지 않도록 결과 id에 묶어 한 번만 고른다.
   const mascotMessage = useMemo(() => {
     if (isLevel) return pickRandom(data.result.passed ? LEVEL_PASS_MESSAGES : LEVEL_FAIL_MESSAGES);
-    if (isRetest) return pickRandom(data.allCleared ? RETEST_CLEAR_MESSAGES : RETEST_PARTIAL_MESSAGES);
+    if (needsRetest) return pickRandom(RETEST_PARTIAL_MESSAGES);
+    if (isRetest) return pickRandom(RETEST_CLEAR_MESSAGES);
     return pickRandom(CHEER_MESSAGES);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result.id]);
 
-  // 승급 시험 결과 효과음 — 결과 id당 한 번만 재생한다.
+  // 결과 효과음 — 결과 id당 한 번만 재생한다. 승급 시험은 기존 팡파르/하강음을 그대로 쓰고,
+  // 오늘의 학습(오늘의 테스트+오답 다시 풀기)은 "완전히" 끝났을 때만 박수 효과음을 울린다.
   useEffect(() => {
-    if (!isLevel) return;
-    if (data.result.passed) playPassFanfare();
-    else playFailTone();
+    if (isLevel) {
+      if (data.result.passed) playPassFanfare();
+      else playFailTone();
+      return;
+    }
+    if (studyComplete) playApplause();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result.id]);
 
@@ -694,33 +723,39 @@ function ResultView({ data, timedOut, onDone }: { data: SubmitResponse; timedOut
         )}
       </div>
     );
-  } else if (isRetest) {
-    mascotMood = data.allCleared ? "strong" : "cheer";
+  } else if (studyComplete) {
+    mascotMood = "strong";
     banner = (
-      <div className={`result-banner ${data.allCleared ? "pass" : ""}`}>
-        <div className="confetti">{data.allCleared ? "🎉✏️🎉" : "🔁"}</div>
-        <h2>{data.allCleared ? "오답을 전부 다 맞혔어요!" : "오답 다시 풀기 완료"}</h2>
+      <div className="result-banner pass">
+        <div className="confetti">🎉👏🎉</div>
+        <h2>오늘의 학습 완료! 참 잘했어요 👏</h2>
         <div className="score">
           {result.score} / {result.total}
         </div>
-        {data.allCleared ? (
-          <p className="muted">이제 남은 오답이 없어요. 완벽해요!</p>
+        {isRetest ? (
+          <p className="muted">오답을 모두 다 맞혔어요. 완벽해요!</p>
         ) : (
-          <p className="muted">아직 {data.stillWrong}개 남았어요. 대시보드로 돌아가면 다시 도전할 수 있어요.</p>
+          <p>
+            연속 출석 <strong>{data.streak}일째</strong> 🔥
+          </p>
         )}
       </div>
     );
   } else {
     mascotMood = "cheer";
     banner = (
-      <div className="result-banner pass">
-        <div className="confetti">✏️</div>
-        <h2>오늘의 테스트 완료!</h2>
+      <div className="result-banner">
+        <div className="confetti">{isRetest ? "🔁" : "📝"}</div>
+        <h2>{isRetest ? "아직 조금 더 풀어보자!" : "틀린 문제를 다시 풀어보자!"}</h2>
         <div className="score">
           {result.score} / {result.total}
         </div>
-        <p>
-          연속 출석 <strong>{data.streak}일째</strong> 🔥
+        <p className="muted">
+          {isRetest ? (
+            <>아직 {data.stillWrong}개 남았어요. 바로 이어서 다시 풀어봐요!</>
+          ) : (
+            "틀린 문제만 모아서 다시 풀면 오늘 학습이 끝나요."
+          )}
         </p>
       </div>
     );
@@ -743,8 +778,8 @@ function ResultView({ data, timedOut, onDone }: { data: SubmitResponse; timedOut
             </div>
           ))}
         </div>
-        <button className="btn" style={{ width: "100%" }} onClick={onDone}>
-          확인
+        <button className="btn" style={{ width: "100%" }} onClick={needsRetest && !isLevel ? onContinueRetest : onDone}>
+          {needsRetest && !isLevel ? "오답 다시 풀기" : "확인"}
         </button>
       </div>
     </>

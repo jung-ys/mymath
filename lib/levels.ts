@@ -183,11 +183,13 @@ export function pairsForTables(tables: number[], multMin = 1, multMax = 20): Pai
 // 1) 커버리지: 지금 도전 중인 단계의 사분면에 속한 모든 (단×배수) 조합을 "오늘의 테스트"에서
 //    한 번 이상 접해봐야 한다. 저학년은 단을 하나씩 나눠서(2단→3단→4단...) 연습하는 경우가
 //    많아 한 번에 전 범위를 다 볼 수 없으니, 여러 날에 걸쳐 누적으로 전부 봤는지를 본다.
-// 2) 연속 정답: 오늘의 테스트를 최근 것부터 거슬러 올라가며 100%인 것이 연속으로
-//    requiredStreak(5)회 이어져야 한다. 중간에 한 번이라도 미달이 있으면 그 지점에서 끊긴다.
+// 2) 연속 정답: 커버리지가 다 채워진 뒤부터는 "오늘의 테스트"가 그 단계 전체 문항 수로
+//    바뀌는데(daily-test/start), 그 전체 범위 시험에서 오답 없이 100점인 것이 최근 것부터
+//    연속으로 requiredStreak(10)회 이어져야 한다. 중간에 한 번이라도 미달이 있으면 그
+//    지점에서 끊긴다. 단계를 쪼개서 일부만 맞혀서는 절대 채워지지 않는다.
 // (computeReadiness에서 실제 계산 — lib/studentView.ts)
 export const READINESS_CONFIG = {
-  requiredStreak: 5,
+  requiredStreak: 10,
   requiredAccuracy: 1.0, // 100%
 };
 

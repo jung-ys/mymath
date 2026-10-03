@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const hasCustom = student.customTables.length > 0;
   const tables = hasCustom ? student.customTables : tablesForStudent(student.level);
   // 지금 단계의 모든 조합을 이미 한 번씩 다 풀어봤다면(누적 커버리지 완료), 오늘의 테스트를
-  // "이 단계 전체 범위" 시험으로 바꾼다 — 승급 자격의 "연속 5회 100점"은 이 전체 범위 시험을
+  // "이 단계 전체 범위" 시험으로 바꾼다 — 승급 자격의 "연속 10회 100점"은 이 전체 범위 시험을
   // 기준으로만 인정되므로(lib/studentView.ts computeReadiness), 그전까지는 단을 하나씩 나눠서
   // 연습하는 지금 방식(최소 15~최대 30문제)을 그대로 유지한다.
   const levelDef = hasCustom ? null : getLevelDef(student.level);

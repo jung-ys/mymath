@@ -949,6 +949,44 @@ function StudentDetail({
           )}
         </div>
       </div>
+
+      <div>
+        <h3>오답 다시 풀기 이력</h3>
+        <p className="muted" style={{ fontSize: "0.78rem", marginTop: -6 }}>
+          오늘의 테스트에 오답이 있으면 바로 이어서 강제로 다시 풀게 되고, 전부 다 맞혀야(완료) 그날
+          학습이 끝난 것으로 쳐요.
+        </p>
+        {history.retestAttempts.length ? (
+          <table>
+            <thead>
+              <tr>
+                <th>점수</th>
+                <th>결과</th>
+                <th>응시시각</th>
+                <th>소요시간</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.retestAttempts.map((r: StudentDetailData["history"]["retestAttempts"][number]) => (
+                <tr key={r.id}>
+                  <td>
+                    {r.score}/{r.total}
+                  </td>
+                  <td>
+                    <span className={`pill ${r.score === r.total ? "pass" : "fail"}`}>
+                      {r.score === r.total ? "완료" : "남음"}
+                    </span>
+                  </td>
+                  <td>{fmtDate(r.takenAt)}</td>
+                  <td>{fmtDuration(r.elapsedSec)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="muted">기록 없음</p>
+        )}
+      </div>
     </>
   );
 }

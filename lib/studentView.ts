@@ -82,12 +82,13 @@ export async function levelExamAttemptToday(studentId: string, level: number) {
 }
 
 export async function studentHistory(studentId: string, limit = 20) {
-  const [daily, levelExams, levelUps] = await Promise.all([
+  const [daily, levelExams, levelUps, retestAttempts] = await Promise.all([
     prisma.dailyTest.findMany({ where: { studentId }, orderBy: { takenAt: "desc" }, take: limit }),
     prisma.levelExam.findMany({ where: { studentId }, orderBy: { takenAt: "desc" }, take: limit }),
     prisma.levelUp.findMany({ where: { studentId }, orderBy: { awardedAt: "desc" } }),
+    prisma.retestAttempt.findMany({ where: { studentId }, orderBy: { takenAt: "desc" }, take: limit }),
   ]);
-  return { daily, levelExams, levelUps };
+  return { daily, levelExams, levelUps, retestAttempts };
 }
 
 // 승급 시험 자격 기준: 아래 두 가지를 모두 만족해야 한다.
@@ -96,7 +97,7 @@ export async function studentHistory(studentId: string, limit = 20) {
 //    연습하는 경우가 많아 하루에 전 범위를 다 볼 수 없으므로, 여러 날에 걸쳐 누적으로
 //    전부 봤는지를 확인한다(정답 여부와 무관하게 "봤는지"만 본다).
 // 2) 연속 정답 — 오늘의 테스트를 최근 것부터 거슬러 올라가며 100%인 기록이 연속으로
-//    requiredStreak(5)회 이어져야 한다. 중간에 한 번이라도 미달이면 그 지점에서 끊긴다.
+//    requiredStreak(10)회 이어져야 한다. 중간에 한 번이라도 미달이면 그 지점에서 끊긴다.
 // 커버리지 계산(전체 이력을 봐야 하므로 개수 제한 없이 가져온다 — 문항 수가 많지 않아 부담 적음)
 // 을 computeReadiness와 hasFullLevelCoverage가 함께 쓸 수 있도록 분리했다.
 async function computeCoverage(studentId: string, level: number) {

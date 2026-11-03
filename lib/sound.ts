@@ -145,16 +145,3 @@ export function playApplause() {
   claps.forEach((d) => clap(d, 0.2 + Math.random() * 0.08));
   [659.25, 783.99, 987.77, 1174.66].forEach((f, i) => tone(f, 240, "sine", 0.13, 0.55 + i * 0.12));
 }
-
-// 대기 시스템 — 선생님 대시보드에 새 요청이 들어왔을 때 나는 "딩동".
-export function playDingDong() {
-  tone(880, 220, "sine", 0.14, 0);
-  tone(659.25, 320, "sine", 0.14, 0.22);
-}
-
-// 대기 시스템 — 학생 화면에서 선생님이 내 차례를 호출했을 때 나는 밝은 알림음.
-export function playCalled() {
-  tone(659.25, 120, "triangle", 0.14, 0);
-  tone(880, 120, "triangle", 0.14, 0.13);
-  tone(1046.5, 260, "triangle", 0.16, 0.26);
-}

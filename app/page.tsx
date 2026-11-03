@@ -120,10 +120,6 @@ function LoginPageInner() {
         <div className="card center muted" style={{ fontSize: "0.85rem" }}>
           계정이 없나요? 선생님께 등록을 요청하세요.
         </div>
-
-        <Link href="/queue" className="card center" style={{ display: "block", fontWeight: 700 }}>
-          🙋 수업 중 선생님 호출 (확인요청 · 질문하기) →
-        </Link>
       </div>
 
       <footer className="foot">구구단 레벨업 · 매일 조금씩, 꾸준히!</footer>

@@ -667,3 +667,197 @@ footer.foot {
   color: var(--muted);
   font-weight: 700;
 }
+
+/* ---------- 교실 대기 시스템 (/queue, /admin/queue) ---------- */
+:root {
+  --q-check: #2f80ed;
+  --q-check-light: #e8f1fe;
+  --q-question: #f0507a;
+  --q-question-light: #fde9ef;
+  --q-called: #f5a623;
+  --q-called-light: #fff4e0;
+}
+
+.queue-card button.link,
+button.link.queue-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 4px 6px;
+  text-decoration: underline;
+}
+button.link.queue-remove { text-decoration: none; font-size: 1rem; }
+button.link.queue-remove:hover { color: var(--bad); }
+
+.queue-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+.queue-btn {
+  border: none;
+  border-radius: 16px;
+  padding: 26px 10px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.1s, filter 0.15s, box-shadow 0.15s;
+}
+.queue-btn-emoji { font-size: 1.8rem; line-height: 1; }
+.queue-btn.check { background: var(--q-check); box-shadow: 0 6px 16px rgba(47, 128, 237, 0.3); }
+.queue-btn.question { background: var(--q-question); box-shadow: 0 6px 16px rgba(240, 80, 122, 0.3); }
+.queue-btn:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-2px); }
+.queue-btn:active:not(:disabled) { transform: translateY(0); }
+.queue-btn:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+
+.queue-done {
+  margin-top: 16px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--good);
+  background: #e6f7f0;
+  border-radius: 12px;
+  padding: 14px;
+  animation: queue-pop 0.35s ease-out;
+}
+
+.queue-status {
+  margin-top: 16px;
+  border-radius: 16px;
+  padding: 18px;
+  text-align: center;
+  border: 2px solid var(--line);
+  animation: queue-pop 0.3s ease-out;
+}
+.queue-status.check { background: var(--q-check-light); border-color: #c9defb; }
+.queue-status.question { background: var(--q-question-light); border-color: #f8c8d6; }
+.queue-status p { margin: 10px 0 4px; }
+.queue-status-label { font-weight: 700; }
+
+.queue-pos {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fff;
+  border-radius: 16px;
+  padding: 10px 40px 14px;
+  margin-top: 12px;
+  box-shadow: var(--shadow-soft);
+  position: relative;
+}
+.queue-pos::before, .queue-pos::after {
+  content: "✦";
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--q-called);
+  font-size: 1.4rem;
+}
+.queue-pos::before { left: -28px; }
+.queue-pos::after { right: -28px; }
+.queue-pos-caption { font-size: 0.85rem; color: var(--muted); font-weight: 700; }
+.queue-pos-num { font-size: 3.6rem; font-weight: 900; line-height: 1.05; color: var(--q-check); }
+.queue-status.question .queue-pos-num { color: var(--q-question); }
+
+.queue-status.called {
+  background: var(--q-called-light);
+  border-color: var(--q-called);
+  animation: queue-pulse 1.2s ease-in-out infinite;
+}
+.queue-called-big { font-size: 1.9rem; font-weight: 900; margin-top: 6px; }
+
+@keyframes queue-pop {
+  from { transform: scale(0.94); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes queue-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 166, 35, 0.45); }
+  50% { box-shadow: 0 0 0 10px rgba(245, 166, 35, 0); }
+}
+
+/* 선생님 대시보드 */
+.queue-toolbar { margin-bottom: 14px; }
+.queue-summary { display: flex; gap: 8px; flex-wrap: wrap; }
+.queue-chip {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.9rem;
+}
+.queue-chip b { font-size: 1.05rem; margin-left: 4px; }
+.queue-chip.check b { color: var(--q-check); }
+.queue-chip.question b { color: var(--q-question); }
+.queue-chip.called b { color: var(--q-called); }
+
+.queue-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 760px) {
+  .queue-columns { grid-template-columns: 1fr; }
+}
+.queue-col { margin-top: 0; }
+.queue-col.check { border-top: 5px solid var(--q-check); }
+.queue-col.question { border-top: 5px solid var(--q-question); }
+.queue-col-title { display: flex; align-items: center; gap: 8px; }
+.queue-col-count {
+  margin-left: auto;
+  background: var(--bg);
+  border-radius: 999px;
+  padding: 2px 12px;
+  font-size: 0.95rem;
+}
+.queue-progress { border-top: 5px solid var(--q-called); }
+
+.queue-list { display: flex; flex-direction: column; gap: 8px; }
+.queue-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.queue-row.first { border-color: var(--q-called); background: #fffaf0; }
+.queue-row.called { background: var(--q-called-light); border-color: #f7d79c; }
+.queue-order { width: 22px; text-align: center; font-weight: 800; color: var(--muted); }
+.queue-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+.queue-avatar.check { background: var(--q-check); }
+.queue-avatar.question { background: var(--q-question); }
+.queue-row-main { flex: 1; min-width: 0; }
+.queue-row-name { font-weight: 800; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queue-row-sub { font-size: 0.8rem; color: var(--muted); }
+.queue-row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.queue-type-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 2px 6px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.queue-type-tag.check { background: var(--q-check-light); color: var(--q-check); }
+.queue-type-tag.question { background: var(--q-question-light); color: var(--q-question); }
+.btn.queue-call-btn.check { background: var(--q-check); box-shadow: none; }
+.btn.queue-call-btn.question { background: var(--q-question); box-shadow: none; }
+.btn.queue-done-btn { background: var(--good); box-shadow: none; }

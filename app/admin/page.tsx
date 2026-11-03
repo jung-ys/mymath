@@ -218,6 +218,7 @@ export default function AdminPage() {
           <div className="brand-academy">{ACADEMY_NAME}</div>
         </div>
         <nav>
+          <Link href="/admin/queue">🙋 대기 대시보드</Link>
           <Link href="/admin/try-exam">🧪 승급시험 체험</Link>
           <Link href="/board">게시판</Link>
           <Link href="/">학생 로그인</Link>
